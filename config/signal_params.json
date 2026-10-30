@@ -1,0 +1,28 @@
+{
+  "_comment": "ADVISORY research model. NOT an approved entry rule: signals inform Claude's research, and every order still needs a documented catalyst and the risk engine. Making signals or the regime filter a hard entry gate needs owner approval (see memory/STRATEGY-PROPOSALS.md).",
+  "status": "advisory",
+  "min_history_days": 210,
+  "sma_fast": 50,
+  "sma_slow": 200,
+  "rsi_period": 14,
+  "rsi_min": 40,
+  "rsi_max": 70,
+  "rs_lookback": 63,
+  "max_from_high_pct": 15,
+  "atr_period": 14,
+  "max_atr_pct": 5,
+  "stop_atr_mult": 2.0,
+  "min_stop_pct": 7,
+  "max_stop_pct": 10,
+  "reward_risk": 2.0,
+  "regime": {
+    "benchmark": "SPY",
+    "high_vol_pct": 30,
+    "slope_lookback": 20
+  },
+  "backtest": {
+    "slippage_bps": 10,
+    "commission_per_order": 0,
+    "out_of_sample_fraction": 0.3
+  }
+}

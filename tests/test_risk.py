@@ -2,7 +2,8 @@
 
 import unittest
 
-from tests.helpers import account, asset, limits, position, quote
+from tests.helpers import CLOCK_TS, account, asset, limits, position, quote
+from xahil.risk import parse_ts
 from xahil.risk import (
     OrderRequest,
     RiskContext,
@@ -12,9 +13,13 @@ from xahil.risk import (
 )
 
 
+NOW = parse_ts(CLOCK_TS)
+
+
 def ctx(**kw):
     base = dict(account=account(), positions=[], open_orders=[], week_orders=[], limits=limits(),
-                asset=asset(), quote=quote(), research_documented=True)
+                asset=asset(), quote=quote(), research_documented=True, now=NOW, market_open=True,
+                daytrade_count=0, same_day_buy_symbols=set(), require_whole_shares=False)
     base.update(kw)
     return RiskContext(**base)
 
@@ -149,7 +154,8 @@ class BuyRules(unittest.TestCase):
         self.assertIn("notional_market_only", failed(evaluate_order(buy(type="limit", limit_price=100), ctx())))
 
     def test_pdt_room(self):
-        self.assertIn("pdt_room", failed(evaluate_order(buy(), ctx(account=account(daytrade_count=3)))))
+        self.assertIn("pdt_room", failed(evaluate_order(buy(), ctx(daytrade_count=3))))
+        self.assertTrue(evaluate_order(buy(), ctx(daytrade_count=2)).approved)
 
     def test_unknown_side_rejected(self):
         self.assertFalse(evaluate_order(OrderRequest("sell_short", "AAPL", qty=1), ctx()).approved)
@@ -157,42 +163,42 @@ class BuyRules(unittest.TestCase):
 
 class SellRules(unittest.TestCase):
     def test_sell_held_qty_ok(self):
-        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.4), ctx(positions=[position("AAPL", 0.4, 100)]))
+        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.4, purpose="discretionary"), ctx(positions=[position("AAPL", 0.4, 100)]))
         self.assertTrue(v.approved, v.reasons)
 
     def test_cannot_sell_what_you_do_not_hold(self):
-        v = evaluate_order(OrderRequest("sell", "AAPL", qty=1), ctx())
+        v = evaluate_order(OrderRequest("sell", "AAPL", qty=1, purpose="discretionary"), ctx())
         self.assertIn("long_position_exists", failed(v))
 
     def test_oversell_rejected(self):
-        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.5), ctx(positions=[position("AAPL", 0.4, 100)]))
+        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.5, purpose="discretionary"), ctx(positions=[position("AAPL", 0.4, 100)]))
         self.assertIn("no_oversell", failed(v))
 
     def test_open_stop_reserves_shares(self):
         stop = [{"id": "s", "side": "sell", "symbol": "AAPL", "qty": "0.4", "filled_qty": "0", "type": "stop"}]
-        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.4), ctx(positions=[position("AAPL", 0.4, 100)], open_orders=stop))
+        v = evaluate_order(OrderRequest("sell", "AAPL", qty=0.4, purpose="discretionary"), ctx(positions=[position("AAPL", 0.4, 100)], open_orders=stop))
         self.assertIn("no_oversell", failed(v))
 
     def test_trailing_stop_needs_whole_shares(self):
-        o = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=0.4, trail_percent=10)
+        o = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=0.4, trail_percent=10, purpose="protective")
         self.assertIn("trail_whole_shares", failed(evaluate_order(o, ctx(positions=[position("AAPL", 0.4, 100)]))))
-        o2 = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=2, trail_percent=10)
+        o2 = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=2, trail_percent=10, purpose="protective")
         self.assertTrue(evaluate_order(o2, ctx(positions=[position("AAPL", 2, 20)])).approved)
 
     def test_trail_percent_whitelist(self):
-        o = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=2, trail_percent=1)
+        o = OrderRequest("sell", "AAPL", type="trailing_stop", time_in_force="gtc", qty=2, trail_percent=1, purpose="protective")
         self.assertIn("trail_percent", failed(evaluate_order(o, ctx(positions=[position("AAPL", 2, 20)]))))
 
     def test_fractional_stop_must_be_day(self):
-        o = OrderRequest("sell", "AAPL", type="stop", time_in_force="gtc", qty=0.4, stop_price=90)
+        o = OrderRequest("sell", "AAPL", type="stop", time_in_force="gtc", qty=0.4, stop_price=90, purpose="protective")
         self.assertIn("fractional_tif", failed(evaluate_order(o, ctx(positions=[position("AAPL", 0.4, 100)]))))
 
     def test_stop_must_be_below_price(self):
-        o = OrderRequest("sell", "AAPL", type="stop", qty=0.4, stop_price=101)
+        o = OrderRequest("sell", "AAPL", type="stop", qty=0.4, stop_price=101, purpose="protective")
         self.assertIn("stop_below_price", failed(evaluate_order(o, ctx(positions=[position("AAPL", 0.4, 100)]))))
 
     def test_notional_sell_rejected(self):
-        o = OrderRequest("sell", "AAPL", notional=10)
+        o = OrderRequest("sell", "AAPL", notional=10, purpose="discretionary")
         self.assertIn("qty_only", failed(evaluate_order(o, ctx(positions=[position("AAPL", 0.4, 100)]))))
 
     def test_stop_never_lowered(self):

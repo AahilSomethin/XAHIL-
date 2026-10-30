@@ -11,6 +11,7 @@
   "min_order_notional": 1.0,
   "price_buffer_pct": 2.0,
   "max_daytrade_count": 2,
+  "max_quote_age_seconds": 60,
   "allowed_trail_percents": [5, 7, 10],
   "allowed_exchanges": ["NYSE", "NASDAQ", "ARCA", "AMEX", "BATS"]
 }

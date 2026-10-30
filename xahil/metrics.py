@@ -157,7 +157,13 @@ class ClosedTrade:
 def _group_fills(fills: list) -> list:
     """Merge partial fills of the same order into one VWAP execution."""
     groups: "OrderedDict[str, dict]" = OrderedDict()
+    seen_ids = set()
     for f in sorted(fills, key=lambda x: x.get("transaction_time", "")):
+        fid = f.get("id")
+        if fid:
+            if fid in seen_ids:  # the same fill delivered twice (pagination overlap, retries)
+                continue
+            seen_ids.add(fid)
         key = f.get("order_id") or f.get("id")
         qty, price = _f(f.get("qty")), _f(f.get("price"))
         g = groups.setdefault(key, {"symbol": f.get("symbol"), "side": f.get("side"),

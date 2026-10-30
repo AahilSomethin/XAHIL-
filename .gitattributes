@@ -1,0 +1,10 @@
+# Append-only agent logs: concurrent appends merge by keeping both sides' lines.
+memory/state/*.jsonl merge=union
+memory/TRADE-LOG.md merge=union
+memory/RESEARCH-LOG.md merge=union
+memory/RECONCILIATION-LOG.md merge=union
+memory/NOTIFICATIONS-OUTBOX.md merge=union
+memory/MISTAKES.md merge=union
+memory/WEEKLY-REVIEW.md merge=union
+memory/STRATEGY-PROPOSALS.md merge=union
+# Everything else (snapshot, halts, run markers, equity history) conflicts loudly instead.

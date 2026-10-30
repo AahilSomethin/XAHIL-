@@ -71,6 +71,8 @@ def _post(url: str, headers: dict, payload: dict) -> tuple:
             return resp.status, resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise ResearchUnavailable(f"Perplexity network error: {type(exc).__name__}") from None
 
 
 def ask(query: str, env=None, today: dt.date = None, post=_post, settings: dict = None,

@@ -27,7 +27,9 @@ prepaid credit, keep auto top-up **off**, and leave `monthly_request_cap`
 ## 2. Alpaca paper account
 - [ ] Sign in at alpaca.markets and switch the dashboard to **Paper Trading**.
 - [ ] **Reset the paper account balance to $1,000.** It defaults to $100,000.
-      Buys stay blocked while equity is above $3,000, on purpose.
+      Buys stay blocked while equity is above $3,000, on purpose. Do this before the
+      first real `reconcile`. If you reset later, XAHIL detects it, halts, and you run
+      `python -m xahil reset-baseline` in your own terminal to start fresh.
 - [ ] Optional but recommended: in paper account settings, turn off shorting
       and set the max margin multiplier to 1. The code already enforces cash
       only and long only; this adds a second layer.
@@ -56,8 +58,17 @@ Follow `routines/README.md`:
 - [ ] Create one cloud environment: Custom network allowlist, an Alpaca network
       secret (or paper-key variables), Telegram variables, `XAHIL_CLOUD=1`.
 - [ ] Create the five tasks with the exact `CRON_TZ=America/New_York ...` crons.
-- [ ] Click **Run now** on pre-market once and confirm a commit lands in `memory/`.
+- [ ] Click **Run now** on pre-market once, between 06:00 and 09:25 ET on a trading day, and
+      confirm a commit lands in `memory/`. Outside that window `run-start` stops the run on
+      purpose (exit 5), and nothing is committed.
 - [ ] Watch claude.ai/settings/usage for the first week.
+
+## 6b. Dry-run track record and activation check
+- [ ] Run the workflows in dry-run for at least 5 trading days and one weekly review (locally with
+      `/pre-market` etc., or as cloud tasks with execution off).
+- [ ] Read `memory/backtests/` and the weekly "Learning analysis". The current backtest is **inconclusive**.
+- [ ] Decide the PENDING items in `memory/STRATEGY-PROPOSALS.md` (signal filter, regime gate, universe).
+- [ ] `python -m xahil activation-check`: every blocking item must be ok.
 
 ## 7. Order execution: NOT ACTIVATED
 The bot proposes orders and logs them as dry runs. To approve real paper order

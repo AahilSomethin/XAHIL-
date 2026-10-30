@@ -29,6 +29,20 @@ Never curl Alpaca, Telegram or Perplexity directly.
 | `notify "msg"` | Telegram (falls back to memory/NOTIFICATIONS-OUTBOX.md) |
 | `research "q"` | Perplexity if approved; exit 3 means use WebSearch |
 | `guard` | run before every commit |
+| `halts` | show persistent halts and unresolved orders |
+| `regime`, `signals [--explain SYM]` | ADVISORY market regime and explainable signals (`--record` logs them) |
+| `size SYM` | max whole shares within the 5% cap |
+| `backtest [--save]` | historical backtest with out-of-sample split (research only) |
+| `decide`, `evidence`, `mistake`, `learn` | Git-backed decision/evidence/mistake logs; weekly learning analysis |
+| `run-start`, `run-finish`, `persist` | run claim (duplicates, holidays, time windows), safe commit + push of memory/ |
+| `activation-check` | read-only preconditions for the owner's execution decision |
+| `ack-halt`, `reset-baseline` | **human only** (local interactive terminal); never run these |
+
+Sell purposes: stops are protective (always allowed); `sell --risk-exit` only at or below the
+-7% cut (engine verifies); other sells are discretionary and refused for shares bought today.
+Exit code 2 from any order command = halt or uncertain outcome: stop ordering, reconcile, notify.
+Entries are whole shares only (`--qty N`); a DAY stop is never overnight protection. Signals and
+regime are research inputs, not entry rules.
 
 ## Hard limits (enforced in code; you cannot and must not work around them)
 Paper endpoint only. Cash only. Long only. US-listed stocks/ETFs only. No

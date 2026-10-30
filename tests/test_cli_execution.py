@@ -27,10 +27,14 @@ class CliHarness(unittest.TestCase):
             "PROPOSALS_FILE": self.tmp / "proposed.jsonl", "EXECUTIONS_FILE": self.tmp / "executed.jsonl",
             "SNAPSHOT_FILE": self.tmp / "snap.json", "HISTORY_FILE": self.tmp / "hist.csv",
             "RECON_LOG": self.tmp / "RECON.md", "RESEARCH_LOG": self.research,
+            "HALTS_FILE": self.tmp / "halts.json",
         }
         self._patchers = [mock.patch.object(cli, k, v) for k, v in patches.items()]
         self._patchers.append(mock.patch.dict("os.environ", {}, clear=True))
         self._patchers.append(mock.patch.object(cli, "load_dotenv", lambda *a, **k: None))
+        self.alerts = []
+        self._patchers.append(mock.patch.object(
+            cli, "alert", lambda msg: (self.alerts.append(msg), {"sent": False, "captured": True})[1]))
         for p in self._patchers:
             p.start()
         # research_mentions has a default arg bound at import time; route it to the temp file.
@@ -57,7 +61,7 @@ class CliHarness(unittest.TestCase):
 class ExecutionGate(CliHarness):
     def test_default_is_dry_run_and_sends_no_order(self):
         fake = FakeAlpaca()
-        code, text = self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+        code, text = self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(code, 0)
         self.assertEqual(self.writes(fake), [])
         rec = json.loads(text)
@@ -68,14 +72,14 @@ class ExecutionGate(CliHarness):
     def test_config_flag_alone_is_not_enough(self):
         fake = FakeAlpaca()
         with mock.patch.object(cli, "load_execution_settings", lambda: APPROVED):
-            code, text = self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+            code, text = self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(self.writes(fake), [])
         self.assertIn("XAHIL_ORDER_EXECUTION", text)
 
     def test_env_flag_alone_is_not_enough(self):
         fake = FakeAlpaca()
         with mock.patch.dict("os.environ", {"XAHIL_ORDER_EXECUTION": "enabled"}):
-            self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+            self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(self.writes(fake), [])
 
     def test_enabled_without_approver_stays_dry_run(self):
@@ -83,14 +87,14 @@ class ExecutionGate(CliHarness):
         no_name = ExecutionSettings(order_execution_enabled=True, approved_by="  ")
         with mock.patch.object(cli, "load_execution_settings", lambda: no_name), \
                 mock.patch.dict("os.environ", {"XAHIL_ORDER_EXECUTION": "enabled"}):
-            self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+            self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(self.writes(fake), [])
 
     def test_both_switches_submit_paper_order_with_idempotent_id(self):
         fake = FakeAlpaca()
         with mock.patch.object(cli, "load_execution_settings", lambda: APPROVED), \
                 mock.patch.dict("os.environ", {"XAHIL_ORDER_EXECUTION": "enabled"}):
-            code, text = self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event",
+            code, text = self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event",
                                        "--workflow", "market-open"], fake)
         self.assertEqual(code, 0, text)
         posts = self.writes(fake)
@@ -99,13 +103,14 @@ class ExecutionGate(CliHarness):
         self.assertEqual(url, "https://paper-api.alpaca.markets/v2/orders")
         sent = json.loads(body)
         self.assertEqual(sent["client_order_id"], "xahil-2026-10-28-market-open-AAPL-buy-market")
-        self.assertEqual(sent["notional"], "40.00")
+        self.assertEqual(sent["qty"], "2")
+        self.assertNotIn("notional", sent)
 
     def test_halt_blocks_even_when_approved(self):
         fake = FakeAlpaca()
         with mock.patch.object(cli, "load_execution_settings", lambda: APPROVED), \
                 mock.patch.dict("os.environ", {"XAHIL_ORDER_EXECUTION": "enabled", "XAHIL_HALT": "1"}):
-            self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+            self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(self.writes(fake), [])
 
     def test_market_closed_not_submitted(self):
@@ -113,14 +118,14 @@ class ExecutionGate(CliHarness):
         fake.state["clock"] = {**fake.state["clock"], "is_open": False}
         with mock.patch.object(cli, "load_execution_settings", lambda: APPROVED), \
                 mock.patch.dict("os.environ", {"XAHIL_ORDER_EXECUTION": "enabled"}):
-            code, text = self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event"], fake)
+            code, text = self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event"], fake)
         self.assertEqual(code, cli.EXIT_REJECTED)
         self.assertEqual(self.writes(fake), [])
 
     def test_manual_flag_cannot_confirm_without_terminal(self):
         fake = FakeAlpaca()
         with mock.patch.object(cli.sys.stdin, "isatty", lambda: False):
-            self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event", "--manual"], fake)
+            self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event", "--manual"], fake)
         self.assertEqual(self.writes(fake), [])
 
     def test_manual_flag_refused_in_cloud_even_with_terminal(self):
@@ -128,7 +133,7 @@ class ExecutionGate(CliHarness):
         with mock.patch.object(cli.sys.stdin, "isatty", lambda: True), \
                 mock.patch.dict("os.environ", {"XAHIL_CLOUD": "1"}), \
                 mock.patch("builtins.input", lambda *_: "AAPL"):
-            self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event", "--manual"], fake)
+            self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event", "--manual"], fake)
         self.assertEqual(self.writes(fake), [])
 
     def test_manual_wrong_or_missing_confirmation_sends_nothing(self):
@@ -136,14 +141,14 @@ class ExecutionGate(CliHarness):
             fake = FakeAlpaca()
             with self.subTest(reply=reply), mock.patch.object(cli.sys.stdin, "isatty", lambda: True), \
                     mock.patch("builtins.input", lambda *_: reply):
-                self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event", "--manual"], fake)
+                self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event", "--manual"], fake)
             self.assertEqual(self.writes(fake), [])
 
     def test_manual_typed_symbol_submits_one_paper_order(self):
         fake = FakeAlpaca()
         with mock.patch.object(cli.sys.stdin, "isatty", lambda: True), \
                 mock.patch("builtins.input", lambda *_: "aapl"):
-            code, _ = self.run_cli(["buy", "AAPL", "--notional", "40", "--reason", "event", "--manual"], fake)
+            code, _ = self.run_cli(["buy", "AAPL", "--qty", "2", "--reason", "event", "--manual"], fake)
         self.assertEqual(code, 0)
         self.assertEqual(len([w for w in self.writes(fake) if w[0] == "POST"]), 1)
 
@@ -151,19 +156,19 @@ class ExecutionGate(CliHarness):
         fake = FakeAlpaca()
         with mock.patch.object(cli.sys.stdin, "isatty", lambda: True), \
                 mock.patch("builtins.input", lambda *_: "AAPL"):
-            code, _ = self.run_cli(["buy", "AAPL", "--notional", "75", "--reason", "event", "--manual"], fake)
+            code, _ = self.run_cli(["buy", "AAPL", "--qty", "4", "--reason", "event", "--manual"], fake)
         self.assertEqual(code, cli.EXIT_REJECTED)
         self.assertEqual(self.writes(fake), [])
 
 
 class RiskThroughCli(CliHarness):
     def test_oversized_buy_rejected_exit_4(self):
-        code, text = self.run_cli(["buy", "AAPL", "--notional", "60", "--reason", "x"], FakeAlpaca())
+        code, text = self.run_cli(["buy", "AAPL", "--qty", "3", "--reason", "x"], FakeAlpaca())
         self.assertEqual(code, cli.EXIT_REJECTED)
         self.assertIn("position_cap", text)
 
     def test_symbol_missing_from_todays_research_rejected(self):
-        code, text = self.run_cli(["check-buy", "MSFT", "--notional", "20"], FakeAlpaca())
+        code, text = self.run_cli(["check-buy", "MSFT", "--qty", "1"], FakeAlpaca())
         self.assertEqual(code, cli.EXIT_REJECTED)
         self.assertIn("research", text)
 
@@ -236,6 +241,30 @@ class Workflows(CliHarness):
         self.assertEqual(code, 0)
         self.assertIn("+$10.00", text)
         self.assertIn("580.5", (self.tmp / "hist.csv").read_text())
+
+    def test_snapshot_refuses_bad_baseline(self):
+        fake = FakeAlpaca(account=account(equity="100000", cash="100000"))
+        code, text = self.run_cli(["snapshot"], fake)
+        self.assertEqual(code, cli.EXIT_HALT)
+        self.assertFalse((self.tmp / "hist.csv").exists())
+
+    def test_invalid_credentials_fail_cleanly(self):
+        fake = FakeAlpaca()
+        fake.state["account"] = None
+        orig = fake.__call__
+
+        def unauthorized(method, url, headers, body):
+            if url.endswith("/account"):
+                return 401, '{"message": "unauthorized."}'
+            return orig(method, url, headers, body)
+
+        factory = lambda: AlpacaClient.from_env(PAPER_ENV, transport=unauthorized)  # noqa: E731
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            code = cli.main(["account"], client_factory=factory)
+        self.assertEqual(code, cli.EXIT_ERROR)
+        self.assertIn("HTTP 401", err.getvalue())
+        self.assertNotIn("PKTEST", err.getvalue())
 
     def test_market_status(self):
         code, text = self.run_cli(["market-status"], FakeAlpaca())

@@ -25,6 +25,7 @@ HARD_MAX_POSITION_PCT = 5.0
 HARD_MAX_TOTAL_EXPOSURE_PCT = 20.0
 HARD_MAX_NEW_TRADES_PER_WEEK = 3
 HARD_STARTING_CAPITAL = 1000.0
+HARD_MAX_QUOTE_AGE_SECONDS = 300.0
 
 
 class ConfigError(RuntimeError):
@@ -44,6 +45,7 @@ class RiskLimits:
     min_order_notional: float = 1.0
     price_buffer_pct: float = 2.0
     max_daytrade_count: int = 2
+    max_quote_age_seconds: float = 60.0
     allowed_trail_percents: tuple = (5.0, 7.0, 10.0)
     allowed_exchanges: tuple = ("NYSE", "NASDAQ", "ARCA", "AMEX", "BATS")
     denylist: frozenset = field(default_factory=frozenset)
@@ -66,6 +68,10 @@ class RiskLimits:
             problems.append("max_equity_multiple_of_start must be >= 1")
         if not (0 < self.max_spread_pct <= 5):
             problems.append("max_spread_pct must be in (0, 5]")
+        if not (0 < self.max_quote_age_seconds <= HARD_MAX_QUOTE_AGE_SECONDS):
+            problems.append(f"max_quote_age_seconds must be in (0, {HARD_MAX_QUOTE_AGE_SECONDS}]")
+        if not (0 <= self.max_daytrade_count <= 2):
+            problems.append("max_daytrade_count must be in [0, 2]")
         if self.price_buffer_pct < 0:
             problems.append("price_buffer_pct must be >= 0")
         if problems:
@@ -175,8 +181,8 @@ def load_dotenv(path: Path = ROOT / ".env", env=None) -> None:
 @dataclass(frozen=True)
 class AlpacaCredentials:
     mode: str  # "headers" or "proxy"
-    key_id: str = ""
-    secret: str = ""
+    key_id: str = field(default="", repr=False)
+    secret: str = field(default="", repr=False)
 
     def headers(self) -> dict:
         if self.mode == "proxy":

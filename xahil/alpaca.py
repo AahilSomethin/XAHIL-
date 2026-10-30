@@ -49,6 +49,10 @@ def urllib_transport(method: str, url: str, headers: dict, body: Optional[bytes]
             return resp.status, resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        # DNS failure, refused connection, timeout: fail closed with a clean error.
+        reason = getattr(exc, "reason", exc)
+        raise AlpacaError(f"Network error calling Alpaca ({type(exc).__name__}: {reason})") from None
 
 
 def _check_url(url: str) -> None:
@@ -139,18 +143,44 @@ class AlpacaClient:
     def calendar(self, start: str, end: str) -> list:
         return self._get("/calendar", {"start": start, "end": end}) or []
 
-    def fills(self, after: str = None) -> list:
-        params = {"activity_types": "FILL", "direction": "asc", "page_size": 100, "after": after}
-        return self._get("/account/activities", params) or []
+    def fills(self, after: str = None, max_pages: int = 20) -> list:
+        """All FILL activities after `after` (ISO time), paginated, oldest first."""
+        out, token = [], None
+        for _ in range(max_pages):
+            params = {"activity_types": "FILL", "direction": "asc", "page_size": 100, "after": after,
+                      "page_token": token}
+            page = self._get("/account/activities", params) or []
+            out.extend(page)
+            if len(page) < 100:
+                return out
+            token = page[-1].get("id")
+        raise AlpacaError("fill history exceeded pagination limit; refusing to compute on partial data")
+
+    def order_by_client_id(self, client_order_id: str) -> Optional[dict]:
+        """Look up an order by our own client_order_id. Returns None if Alpaca has no such order."""
+        try:
+            return self._get("/orders:by_client_order_id", {"client_order_id": client_order_id})
+        except AlpacaError as exc:
+            if exc.status == 404:
+                return None
+            raise
 
     def latest_quote(self, symbol: str) -> dict:
         data = self._data_get(f"/stocks/{urllib.parse.quote(symbol)}/quotes/latest", {"feed": "iex"})
         return (data or {}).get("quote", {})
 
-    def daily_bars(self, symbol: str, start: str, end: str = None) -> list:
-        params = {"timeframe": "1Day", "start": start, "end": end, "feed": "iex", "adjustment": "all", "limit": 1000}
-        data = self._data_get(f"/stocks/{urllib.parse.quote(symbol)}/bars", params)
-        return (data or {}).get("bars", []) or []
+    def daily_bars(self, symbol: str, start: str, end: str = None, max_pages: int = 20) -> list:
+        """Split/dividend-adjusted daily bars from the free IEX feed, paginated."""
+        out, token = [], None
+        for _ in range(max_pages):
+            params = {"timeframe": "1Day", "start": start, "end": end, "feed": "iex", "adjustment": "all",
+                      "limit": 10000, "page_token": token}
+            data = self._data_get(f"/stocks/{urllib.parse.quote(symbol)}/bars", params) or {}
+            out.extend(data.get("bars") or [])
+            token = data.get("next_page_token")
+            if not token:
+                return out
+        raise AlpacaError(f"bar history for {symbol} exceeded pagination limit")
 
     # --- write (only called by the execution layer after the risk engine) ----
     def submit_order(self, order: dict) -> dict:

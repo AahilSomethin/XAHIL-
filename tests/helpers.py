@@ -15,7 +15,7 @@ def limits(**kw) -> RiskLimits:
 
 def account(**kw) -> dict:
     base = {"account_number": "PA1234567", "status": "ACTIVE", "equity": "1000", "cash": "1000",
-            "last_equity": "1000", "buying_power": "4000", "daytrade_count": 0, "multiplier": "4",
+            "last_equity": "1000", "buying_power": "4000", "daytrade_count": None, "multiplier": "4",
             "trading_blocked": False, "account_blocked": False}
     base.update(kw)
     return base
@@ -37,8 +37,21 @@ def asset(symbol="AAPL", **kw) -> dict:
     return a
 
 
-def quote(ask=100.0, bid=99.95) -> dict:
-    return {"ap": ask, "bp": bid}
+CLOCK_TS = "2026-10-28T10:00:00.123456789-04:00"   # 14:00:00Z, market open
+FRESH_QUOTE_TS = "2026-10-28T13:59:50.5Z"           # 10 s before the clock
+
+
+def quote(ask=100.0, bid=99.95, t=FRESH_QUOTE_TS) -> dict:
+    q = {"ap": ask, "bp": bid}
+    if t is not None:
+        q["t"] = t
+    return q
+
+
+def fill(symbol, side, qty, price, when, order_id=None, fid=None) -> dict:
+    return {"id": fid or f"{symbol}-{side}-{when}", "order_id": order_id or f"o-{symbol}-{side}-{when}",
+            "activity_type": "FILL", "symbol": symbol, "side": side, "qty": str(qty), "price": str(price),
+            "transaction_time": when}
 
 
 class FakeAlpaca:
@@ -46,14 +59,17 @@ class FakeAlpaca:
 
     def __init__(self, **state):
         self.calls = []
+        self.submitted = {}       # client_order_id -> order (what Alpaca "has")
+        self.post_behaviour = None  # None | "timeout_after_accept" | "timeout_before_accept" | ("http", code, body)
+        self.cancel_behaviour = None
         self.state = {
             "account": account(),
             "positions": [],
             "orders_open": [],
             "orders_all": [],
             "asset": asset(),
-            "quote": quote(),
-            "clock": {"timestamp": "2026-10-28T10:00:00.123456789-04:00", "is_open": True,
+            "quote": quote(20.0, 19.99),  # $20: whole shares fit the $50 position cap
+            "clock": {"timestamp": CLOCK_TS, "is_open": True,
                       "next_open": "2026-10-29T09:30:00-04:00", "next_close": "2026-10-28T16:00:00-04:00"},
             "calendar": [{"date": "2026-10-28", "open": "09:30", "close": "16:00"}],
             "bars": [],
@@ -73,9 +89,31 @@ class FakeAlpaca:
         if path.endswith("/orders") and method == "GET":
             key = "orders_all" if qs.get("status") == ["all"] else "orders_open"
             return 200, json.dumps(self.state[key])
+        if path.endswith("/orders:by_client_order_id"):
+            coid = qs.get("client_order_id", [""])[0]
+            if coid in self.submitted:
+                return 200, json.dumps(self.submitted[coid])
+            return 404, '{"message": "order not found"}'
         if path.endswith("/orders") and method == "POST":
-            return 200, json.dumps({"id": "new-order-id", "status": "accepted", **json.loads(body)})
+            order = {"id": f"id-{len(self.submitted) + 1}", "status": "accepted", **json.loads(body)}
+            b = self.post_behaviour
+            if b == "timeout_before_accept":
+                from xahil.alpaca import AlpacaError
+                raise AlpacaError("Network error calling Alpaca (TimeoutError: timed out)")
+            if isinstance(b, tuple) and b[0] == "http":
+                return b[1], b[2]
+            if order["client_order_id"] in self.submitted:
+                return 422, '{"message": "client_order_id must be unique"}'
+            self.submitted[order["client_order_id"]] = order
+            if b == "timeout_after_accept":
+                from xahil.alpaca import AlpacaError
+                raise AlpacaError("Network error calling Alpaca (TimeoutError: timed out)")
+            if b == "broker_rejects":
+                order["status"] = "rejected"
+            return 200, json.dumps(order)
         if "/orders/" in path and method == "DELETE":
+            if self.cancel_behaviour:
+                return self.cancel_behaviour
             return 204, ""
         if "/assets/" in path:
             return 200, json.dumps(self.state["asset"])
@@ -86,9 +124,21 @@ class FakeAlpaca:
         if path.endswith("/quotes/latest"):
             return 200, json.dumps({"quote": self.state["quote"]})
         if path.endswith("/bars"):
-            return 200, json.dumps({"bars": self.state["bars"]})
+            sym = path.split("/stocks/")[1].split("/")[0]
+            bars = self.state.get("bars_by_symbol", {}).get(sym, self.state["bars"])
+            start, end = qs.get("start", [""])[0], qs.get("end", [None])[0]
+            bars = [b for b in bars if str(b["t"])[:10] >= start[:10] and (not end or str(b["t"])[:10] <= end[:10])]
+            return 200, json.dumps({"bars": bars})
         if path.endswith("/account/activities"):
-            return 200, json.dumps(self.state["fills"])
+            if self.state.get("fills_error"):
+                return 500, '{"message": "internal error"}'
+            fills = self.state["fills"]
+            after = qs.get("after", [None])[0]
+            if after:
+                from xahil.risk import parse_ts
+                cut = parse_ts(after)
+                fills = [f for f in fills if parse_ts(f["transaction_time"]) > cut]
+            return 200, json.dumps(fills)
         return 404, "not found"
 
     def posts(self):

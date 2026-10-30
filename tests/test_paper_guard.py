@@ -74,6 +74,20 @@ class CredentialGuard(unittest.TestCase):
         creds = resolve_alpaca_credentials({"XAHIL_ALPACA_AUTH": "proxy"})
         self.assertEqual(creds.headers(), {})
 
+    def test_credentials_never_appear_in_repr(self):
+        creds = resolve_alpaca_credentials({"ALPACA_API_KEY": "PKSHOULDNOTPRINT", "ALPACA_SECRET_KEY": "SECRETVALUE"})
+        self.assertNotIn("PKSHOULDNOTPRINT", repr(creds))
+        self.assertNotIn("SECRETVALUE", repr(creds))
+
+    def test_network_failure_becomes_clean_alpaca_error(self):
+        import urllib.error
+        from unittest import mock
+        from xahil import alpaca as alpaca_mod
+        with mock.patch.object(alpaca_mod._OPENER, "open", side_effect=urllib.error.URLError("dns down")):
+            with self.assertRaises(alpaca_mod.AlpacaError) as ctx:
+                alpaca_mod.urllib_transport("GET", "https://paper-api.alpaca.markets/v2/account", {}, None)
+        self.assertIn("Network error", str(ctx.exception))
+
     def test_unknown_auth_mode_rejected(self):
         with self.assertRaises(ConfigError):
             resolve_alpaca_credentials({"XAHIL_ALPACA_AUTH": "live"})
