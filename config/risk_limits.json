@@ -1,0 +1,16 @@
+{
+  "_comment": "Human-owned. Code enforces hard ceilings (5% position, 20% exposure, 3 buys/week); values here may only be stricter. Agent runs cannot commit changes to config/.",
+  "starting_capital": 1000,
+  "max_position_pct": 5,
+  "max_total_exposure_pct": 20,
+  "max_new_trades_per_week": 3,
+  "max_open_positions": 4,
+  "max_equity_multiple_of_start": 3,
+  "max_spread_pct": 1.0,
+  "min_share_price": 1.0,
+  "min_order_notional": 1.0,
+  "price_buffer_pct": 2.0,
+  "max_daytrade_count": 2,
+  "allowed_trail_percents": [5, 7, 10],
+  "allowed_exchanges": ["NYSE", "NASDAQ", "ARCA", "AMEX", "BATS"]
+}

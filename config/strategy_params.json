@@ -1,0 +1,10 @@
+{
+  "_comment": "Numeric strategy parameters used by midday-scan and protect. Human-owned; change only after approving a proposal in memory/STRATEGY-PROPOSALS.md.",
+  "initial_stop_pct": 10,
+  "cut_loss_pct": -7,
+  "trail_tightening": [
+    {"gain_pct": 15, "trail_pct": 7},
+    {"gain_pct": 20, "trail_pct": 5}
+  ],
+  "min_stop_distance_pct": 3
+}

@@ -1,0 +1,10 @@
+{
+  "_comment": "Optional paid integrations. All off. Turning one on requires owner approval of the cost.",
+  "perplexity": {
+    "enabled": false,
+    "model": "sonar",
+    "monthly_request_cap": 150
+  },
+  "liquid": {"enabled": false},
+  "quiver_quant": {"enabled": false}
+}
