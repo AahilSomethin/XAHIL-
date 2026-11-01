@@ -1,10 +1,36 @@
 {
-  "_comment": "Optional paid integrations. All off. Turning one on requires owner approval of the cost.",
+  "_comment": "Research and optional integrations. Tavily uses its FREE tier only (1,000 credits/month, no card); XAHIL caps usage below that and never enables paid usage. Perplexity and the others are off; turning one on requires owner approval of the cost.",
+  "research": {
+    "primary": "tavily",
+    "fallback": "perplexity",
+    "min_sources": 2,
+    "min_distinct_domains": 2,
+    "min_fresh_dated_sources": 1,
+    "max_source_age_days": 7
+  },
+  "tavily": {
+    "enabled": true,
+    "plan": "free (1,000 credits/month; basic search = 1 credit)",
+    "search_depth": "basic",
+    "allowed_depths": [
+      "basic"
+    ],
+    "max_results": 8,
+    "monthly_credit_cap": 900,
+    "daily_credit_cap": 40,
+    "cache_ttl_hours": 6,
+    "default_topic": "news",
+    "default_time_range": "week"
+  },
   "perplexity": {
     "enabled": false,
     "model": "sonar",
     "monthly_request_cap": 150
   },
-  "liquid": {"enabled": false},
-  "quiver_quant": {"enabled": false}
+  "liquid": {
+    "enabled": false
+  },
+  "quiver_quant": {
+    "enabled": false
+  }
 }

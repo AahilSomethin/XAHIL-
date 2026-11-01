@@ -178,8 +178,13 @@ def recon_halts(state: dict = None) -> list:
     return reasons
 
 
-def build_context(state: dict, open_orders: list = None, research_ok: bool = False) -> RiskContext:
+def build_context(state: dict, open_orders: list = None, research_ok: bool = False, symbol: str = None) -> RiskContext:
     params = _read_json(CONFIG_DIR / "strategy_params.json")
+    evidence = None
+    if symbol:
+        from xahil import learning
+        evidence = learning.evidence_sufficiency(symbol, state["today"], research.requirements(load_integrations()),
+                                                 path=learning.EVIDENCE)
     orders = state["open_orders"] if open_orders is None else open_orders
     return RiskContext(
         account=state["account"], positions=state["positions"], open_orders=orders,
@@ -191,6 +196,7 @@ def build_context(state: dict, open_orders: list = None, research_ok: bool = Fal
         protection_gaps=overnight_protection_gaps(state["positions"], state["open_orders"]),
         cut_loss_pct=float(params["cut_loss_pct"]),
         require_whole_shares=True,
+        research_evidence=evidence,
     )
 
 
@@ -350,11 +356,24 @@ def cmd_preflight(args, client_factory) -> int:
     report["persistent_halts"] = recon_halts()
     env = os.environ
     report["telegram"] = "configured" if env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID") else "fallback-outbox"
+    from xahil import tavily
+    settings = load_integrations()
+    tav = {"key": "set" if (env.get("TAVILY_API_KEY") or env.get("XAHIL_TAVILY_AUTH", "").lower() == "proxy")
+           else "TAVILY_API_KEY not set"}
     try:
-        research.check_available(load_integrations(), env, dt.date.today())
+        b = tavily.check_budget(settings, settings.get("tavily", {}).get("search_depth", "basic"),
+                                dt.datetime.now(dt.timezone.utc))
+        tav.update(status="available" if tav["key"] == "set" else "no key - research falls back to WebSearch",
+                   credits_this_month=b["month_credits"], credits_today=b["day_credits"],
+                   monthly_cap=settings["tavily"]["monthly_credit_cap"], daily_cap=settings["tavily"]["daily_credit_cap"])
+    except tavily.TavilyUnavailable as exc:
+        tav["status"] = f"unavailable ({exc}) - use WebSearch"
+    report["research"] = {"primary": "tavily", "tavily": tav}
+    try:
+        research.check_available(settings, env, dt.date.today())
         report["perplexity"] = "enabled"
     except research.ResearchUnavailable as exc:
-        report["perplexity"] = f"off ({exc}) - use WebSearch"
+        report["perplexity"] = f"off ({exc})"
     report["dotenv_present_in_cloud"] = is_cloud_run() and (ROOT / ".env").exists()
     out(report)
     if report["dotenv_present_in_cloud"]:
@@ -490,7 +509,7 @@ def _buy_request(args) -> OrderRequest:
 def _buy_evaluator(client, order: OrderRequest):
     def evaluate():
         state = gather(client, order.symbol, with_market=True)
-        ctx = build_context(state, research_ok=research_mentions(state["today"], order.symbol))
+        ctx = build_context(state, research_ok=research_mentions(state["today"], order.symbol), symbol=order.symbol)
         return evaluate_order(order, ctx), state, []
     return evaluate
 
@@ -762,19 +781,36 @@ def cmd_notify(args, client_factory) -> int:
     return EXIT_OK
 
 
+EXIT_INSUFFICIENT = 6
+
+
 def cmd_research(args, client_factory) -> int:
     try:
-        result = research.ask(args.query)
-        out(research.to_markdown(result))
-        if args.log:
-            from xahil import learning
-            for url in result["citations"]:
-                learning.record_evidence(args.symbol or "MARKET", f"Q: {args.query} | A: {result['answer'][:400]}",
-                                         url, "perplexity", args.workflow, path=learning.EVIDENCE)
-        return EXIT_OK
+        result = research.ask(args.query, provider=args.provider, topic=args.topic, time_range=args.time_range,
+                              max_results=args.max_results)
     except research.ResearchUnavailable as exc:
-        print(f"RESEARCH UNAVAILABLE: {exc}. Fall back to WebSearch and note it in the log.", file=sys.stderr)
+        print(f"RESEARCH UNAVAILABLE: {exc}. Fall back to WebSearch, record each source with "
+              f"`xahil evidence ... --published YYYY-MM-DD`, and note the fallback in the log. "
+              f"Missing research is not a signal: default HOLD.", file=sys.stderr)
         return EXIT_UNAVAILABLE
+    out(research.to_markdown(result))
+    logged = []
+    if args.log:
+        from xahil import learning
+        kind = {"finance": "data"}.get(result.get("topic"), "news") if result["provider"] == "tavily" else "perplexity"
+        for s in result["sources"]:
+            claim = s.get("title") or (result.get("answer") or "")[:400] or args.query
+            rec = learning.record_evidence(args.symbol or "MARKET", claim, s["url"], kind, args.workflow,
+                                           path=learning.EVIDENCE, published_date=s.get("published_date"),
+                                           retrieved_at=s.get("retrieved_at"), provider=result["provider"],
+                                           query=args.query, title=s.get("title"), snippet=s.get("snippet"))
+            logged.append(rec["id"])
+        print(f"\nEvidence logged: {', '.join(logged) or 'none'}")
+    if not result["sufficiency"]["sufficient"]:
+        print("INSUFFICIENT RESEARCH: " + "; ".join(result["sufficiency"]["reasons"])
+              + ". Treat as no information (not bullish). Default HOLD.", file=sys.stderr)
+        return EXIT_INSUFFICIENT
+    return EXIT_OK
 
 
 def cmd_guard(args, client_factory) -> int:
@@ -910,7 +946,11 @@ def build_parser() -> argparse.ArgumentParser:
     n.add_argument("message", nargs="?")
     rs = sub.add_parser("research")
     rs.add_argument("query")
-    rs.add_argument("--log", action="store_true", help="record each citation in the evidence log")
+    rs.add_argument("--log", action="store_true", help="record each source in the evidence log")
+    rs.add_argument("--topic", choices=["news", "finance", "general"], help="Tavily topic (default news)")
+    rs.add_argument("--time-range", choices=["day", "week", "month", "year"], help="Tavily window (default week)")
+    rs.add_argument("--max-results", type=int)
+    rs.add_argument("--provider", choices=["tavily", "perplexity"], help="force one provider")
     rs.add_argument("--symbol")
     rs.add_argument("--workflow", default="manual")
     sub.add_parser("guard", help="block commits outside memory/")
@@ -936,6 +976,11 @@ HANDLERS = {
 
 
 def main(argv=None, client_factory=None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252; research text is UTF-8
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     load_dotenv()
     args = build_parser().parse_args(argv)
     factory = client_factory or (lambda: AlpacaClient.from_env())
@@ -948,4 +993,7 @@ def main(argv=None, client_factory=None) -> int:
         return EXIT_ERROR
     except AlpacaError as exc:
         print(f"ALPACA ERROR: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    except ValueError as exc:  # invalid user/agent input to a memory command (bad URL, date, action)
+        print(f"INVALID INPUT: {exc}", file=sys.stderr)
         return EXIT_ERROR

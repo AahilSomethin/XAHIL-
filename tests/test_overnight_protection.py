@@ -19,7 +19,7 @@ def stop(sym, tif, kind="stop", qty="1"):
 def ctx(**kw):
     base = dict(account=account(), positions=[], open_orders=[], week_orders=[], limits=limits(), asset=asset(),
                 quote=quote(20, 19.99), research_documented=True, now=NOW, market_open=True, daytrade_count=0,
-                same_day_buy_symbols=set())  # require_whole_shares defaults to True
+                same_day_buy_symbols=set(), research_evidence={'sufficient': True, 'reasons': []})  # whole shares default True
     base.update(kw)
     return RiskContext(**base)
 

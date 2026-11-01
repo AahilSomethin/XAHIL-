@@ -42,6 +42,22 @@ class CliHarness(unittest.TestCase):
         self._patchers.append(mock.patch.object(cli, "research_mentions",
                                                 lambda d, s, path=self.research: orig(d, s, path)))
         self._patchers[-1].start()
+        # Isolated Git-backed memory logs, with sufficient fresh evidence for AAPL on the fake trading day.
+        from xahil import learning, tavily
+        for name, fname in (("EVIDENCE", "evidence.jsonl"), ("DECISIONS", "decisions.jsonl"),
+                            ("SIGNALS", "signals.jsonl"), ("REGIMES", "regimes.jsonl"),
+                            ("MISTAKES", "mistakes.jsonl"), ("MISTAKES_MD", "MISTAKES.md")):
+            p = mock.patch.object(learning, name, self.tmp / fname)
+            p.start()
+            self._patchers.append(p)
+        for name, val in (("USAGE_LOG", self.tmp / "research_usage.jsonl"), ("CACHE_DIR", self.tmp / "rcache")):
+            p = mock.patch.object(tavily, name, val)
+            p.start()
+            self._patchers.append(p)
+        for url in ("https://www.reuters.com/aapl-event", "https://apnews.com/aapl-event"):
+            learning.record_evidence("AAPL", "Product event scheduled this week", url, "news", "pre-market",
+                                     date="2026-10-28", path=learning.EVIDENCE, published_date="2026-10-27",
+                                     provider="tavily")
 
     def tearDown(self):
         for p in reversed(self._patchers):

@@ -43,12 +43,13 @@ half-days come from Alpaca's calendar.
 
 ## Cloud environment (one environment shared by all five tasks)
 1. **Network access → Custom**, allowed domains: `paper-api.alpaca.markets`, `data.alpaca.markets`,
-   `api.telegram.org` (add `api.perplexity.ai` only if you approve Perplexity). Keep the default
-   package-manager list checked.
+   `api.telegram.org`, `api.tavily.com` (add `api.perplexity.ai` only if you approve Perplexity). Keep the
+   default package-manager list checked.
 2. **Network secrets** (recommended; the agent never sees the keys): "Alpaca paper" for hosts
    `paper-api.alpaca.markets` and `data.alpaca.markets`, two custom headers with no prefix:
-   `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY` (paper keys only). Optional later: Perplexity
-   (`Authorization`, prefix `Bearer`).
+   `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY` (paper keys only). "Tavily" for host `api.tavily.com`:
+   header `Authorization`, prefix `Bearer`, value your `tvly-` key, plus the variable `XAHIL_TAVILY_AUTH=proxy`.
+   Optional later: Perplexity (`Authorization`, prefix `Bearer`).
 3. **Environment variables**: `XAHIL_CLOUD=1`, `XAHIL_ALPACA_AUTH=proxy`, `TELEGRAM_BOT_TOKEN`,
    `TELEGRAM_CHAT_ID`. Telegram puts its token in the URL, so it can't be a network secret. If
    network secrets don't work, use `XAHIL_ALPACA_AUTH=headers` with `ALPACA_API_KEY` /

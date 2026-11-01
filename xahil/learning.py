@@ -64,17 +64,43 @@ def record_decision(symbol: str, action: str, reason: str, workflow: str, eviden
 
 
 def record_evidence(symbol: str, claim: str, source: str, kind: str, workflow: str, date: str = None,
-                    path: Path = EVIDENCE) -> dict:
+                    path: Path = EVIDENCE, *, published_date: str = None, retrieved_at: str = None,
+                    provider: str = "manual", query: str = None, title: str = None, snippet: str = None) -> dict:
     if not URL_RE.match(source or ""):
         raise ValueError("source must be an http(s) URL")
     if not claim.strip():
         raise ValueError("claim is required")
+    if published_date:
+        try:
+            dt.date.fromisoformat(published_date)
+        except ValueError:
+            raise ValueError("published_date must be YYYY-MM-DD") from None
     date = date or et_today()
+    host = re.sub(r"^www\.", "", (re.match(r"^https?://([^/:?#]+)", source).group(1)).lower())
     rec = {"id": _next_id(path, "e", date), "date": date, "symbol": (symbol or "MARKET").upper(),
-           "claim": claim.strip()[:1000], "source": source, "kind": kind, "workflow": workflow,
-           "trust": "untrusted-external"}
+           "claim": claim.strip()[:1000], "source": source, "domain": host, "kind": kind, "workflow": workflow,
+           "provider": provider, "published_date": published_date,
+           "retrieved_at": retrieved_at or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+           "query": (query or "")[:400] or None, "title": (title or "")[:300] or None,
+           "snippet": (snippet or "")[:800] or None, "trust": "untrusted-external"}
     journal.append(path, rec)
     return rec
+
+
+def evidence_for(symbol: str, date: str, path: Path = EVIDENCE) -> list:
+    """Evidence recorded for `symbol` on trading date `date` (market-wide items are excluded)."""
+    sym = symbol.upper()
+    return [r for r in journal.read(path) if r.get("symbol") == sym and r.get("date") == date and r.get("source")]
+
+
+def evidence_sufficiency(symbol: str, date: str, req: dict, path: Path = EVIDENCE) -> dict:
+    """Is there enough fresh, independent evidence on record today to justify an entry?"""
+    from xahil.research import assess_sufficiency  # local import: research imports nothing from here
+    rows = evidence_for(symbol, date, path)
+    sources = [{"url": r["source"], "domain": r.get("domain"), "published_date": r.get("published_date")} for r in rows]
+    out = assess_sufficiency(sources, dt.date.fromisoformat(date), req)
+    out["evidence_ids"] = [r["id"] for r in rows]
+    return out
 
 
 def record_mistake(title: str, what: str, lesson: str, symbol: str = "", date: str = None,

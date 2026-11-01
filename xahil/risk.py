@@ -125,6 +125,7 @@ class RiskContext:
     protection_gaps: list = field(default_factory=list)
     cut_loss_pct: float = -7.0                 # risk_exit is only allowed at or below this unrealized %
     require_whole_shares: bool = True          # entries must be able to carry a GTC stop overnight
+    research_evidence: Optional[dict] = None   # sufficiency of today's recorded evidence; None = unknown
 
 
 @dataclass
@@ -446,6 +447,12 @@ def _evaluate_buy(order: OrderRequest, ctx: RiskContext) -> Verdict:
               f"day-trade count {ctx.daytrade_count} leaves no room (max {lim.max_daytrade_count})")
 
     check("research_documented", ctx.research_documented, "no catalyst for this symbol in today's RESEARCH-LOG entry")
+    # Missing or thin research is never a reason to buy: fail closed.
+    ev = ctx.research_evidence
+    check("research_sufficient", bool(ev and ev.get("sufficient")),
+          "insufficient research evidence recorded today for this symbol"
+          + (f" ({'; '.join(ev.get('reasons', []))})" if ev else " (not evaluated)")
+          + ": no information is not a buy signal")
 
     return Verdict(not reasons, reasons, checks, round(cost, 2) if math.isfinite(cost) else cost)
 

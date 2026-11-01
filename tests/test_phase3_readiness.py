@@ -25,7 +25,7 @@ NOW = parse_ts(CLOCK_TS)  # 2026-10-28 14:00:00Z
 def ctx(**kw):
     base = dict(account=account(), positions=[], open_orders=[], week_orders=[], limits=limits(),
                 asset=asset(), quote=quote(), research_documented=True, now=NOW, market_open=True,
-                daytrade_count=0, same_day_buy_symbols=set(), require_whole_shares=False)
+                daytrade_count=0, same_day_buy_symbols=set(), require_whole_shares=False, research_evidence={'sufficient': True, 'reasons': []})
     base.update(kw)
     return RiskContext(**base)
 

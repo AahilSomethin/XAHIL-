@@ -22,12 +22,13 @@ Never curl Alpaca, Telegram or Perplexity directly.
 | `preflight`, `market-status` | safety and calendar checks |
 | `reconcile --workflow W` | diff Alpaca vs the last snapshot (run first, every workflow) |
 | `account`, `positions`, `orders`, `quote SYM` | read-only |
-| `check-buy SYM --notional N` | risk verdict only |
+| `check-buy SYM --qty N` | risk verdict only (whole shares) |
 | `buy` / `sell` / `protect` | orders: risk engine first, dry-run unless execution is approved |
 | `midday-scan` | deterministic cut/tighten/missing-stop plan |
 | `snapshot`, `weekly-stats` | computed P&L, drawdown, win rate, vs SPY |
 | `notify "msg"` | Telegram (falls back to memory/NOTIFICATIONS-OUTBOX.md) |
-| `research "q"` | Perplexity if approved; exit 3 means use WebSearch |
+| `research "q" [--topic news\|finance] [--log --symbol SYM]` | Tavily free tier (Perplexity optional, off); exit 0 sufficient, 6 insufficient = no information, 3 unavailable = use WebSearch + `evidence --published` |
+| `research-check SYM` | is today's recorded evidence sufficient for an entry? (engine enforces it) |
 | `guard` | run before every commit |
 | `halts` | show persistent halts and unresolved orders |
 | `regime`, `signals [--explain SYM]` | ADVISORY market regime and explainable signals (`--record` logs them) |
@@ -41,6 +42,7 @@ Never curl Alpaca, Telegram or Perplexity directly.
 Sell purposes: stops are protective (always allowed); `sell --risk-exit` only at or below the
 -7% cut (engine verifies); other sells are discretionary and refused for shares bought today.
 Exit code 2 from any order command = halt or uncertain outcome: stop ordering, reconcile, notify.
+Missing or insufficient research is never a bullish signal: default HOLD.
 Entries are whole shares only (`--qty N`); a DAY stop is never overnight protection. Signals and
 regime are research inputs, not entry rules.
 

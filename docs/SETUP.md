@@ -11,7 +11,8 @@ dry-run the whole way through.
 | Alpaca paper account + IEX market data | $0 | Required |
 | Telegram bot | $0 | Required for notifications (falls back to a file) |
 | GitHub private repo | $0 | Required |
-| Perplexity API | Pay-as-you-go | **Off.** Optional. Needs your approval. |
+| Tavily search API | $0 (free tier: 1,000 credits/month, no card) | **Primary research.** XAHIL caps it at 900/month and 40/day; basic search only |
+| Perplexity API | Pay-as-you-go | **Off.** Optional fallback. Needs your approval. |
 | Liquid, Quiver Quant | Not integrated | Off |
 
 If Pro counts toward the $40, about $20/month is left. Perplexity's `sonar`
@@ -40,6 +41,12 @@ prepaid credit, keep auto top-up **off**, and leave `monthly_request_cap`
 - [ ] Send any message to your new bot, then open
       `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and copy
       `"chat":{"id": ...}`.
+
+## 3b. Tavily (free research)
+- [ ] Sign up at tavily.com on the free plan. Don't add a card or enable pay-as-you-go.
+- [ ] Copy the API key into `.env` as `TAVILY_API_KEY=tvly-...`.
+- [ ] `python -m xahil preflight` should show `research.tavily.status: available`.
+- [ ] `python -m xahil research "Ford Motor earnings" --topic news` (1 credit) should list dated sources.
 
 ## 4. Local smoke test
 - [ ] Copy `.env.example` to `.env` and fill in the paper keys and Telegram values.

@@ -159,8 +159,19 @@ def cmd_decide(args, client_factory) -> int:
 
 def cmd_evidence(args, client_factory) -> int:
     cli.out(learning.record_evidence(args.symbol, args.claim, args.source, args.kind, args.workflow,
-                                     path=learning.EVIDENCE))
+                                     path=learning.EVIDENCE, published_date=args.published,
+                                     provider=args.provider, query=args.query))
     return cli.EXIT_OK
+
+
+def cmd_research_check(args, client_factory) -> int:
+    from xahil import research
+    from xahil.config import load_integrations
+    date = args.date or learning.et_today()
+    res = learning.evidence_sufficiency(args.symbol, date, research.requirements(load_integrations()),
+                                        path=learning.EVIDENCE)
+    cli.out({"symbol": args.symbol.upper(), "date": date, **res})
+    return cli.EXIT_OK if res["sufficient"] else 6
 
 
 def cmd_mistake(args, client_factory) -> int:
@@ -306,6 +317,12 @@ def add_parsers(sub) -> None:
     e.add_argument("--source", required=True)
     e.add_argument("--kind", default="web", choices=["news", "filing", "data", "web", "perplexity"])
     e.add_argument("--workflow", default="manual")
+    e.add_argument("--published", help="source publication date YYYY-MM-DD (needed for freshness)")
+    e.add_argument("--provider", default="websearch", choices=["websearch", "tavily", "perplexity", "manual"])
+    e.add_argument("--query")
+    rq = sub.add_parser("research-check", help="is today's recorded evidence for SYM sufficient for an entry?")
+    rq.add_argument("symbol")
+    rq.add_argument("--date")
     m = sub.add_parser("mistake", help="record a mistake and lesson")
     m.add_argument("--title", required=True)
     m.add_argument("--what", required=True)
@@ -328,7 +345,8 @@ def add_parsers(sub) -> None:
 
 HANDLERS = {
     "regime": cmd_regime, "signals": cmd_signals, "backtest": cmd_backtest, "size": cmd_size,
-    "decide": cmd_decide, "evidence": cmd_evidence, "mistake": cmd_mistake, "learn": cmd_learn,
+    "decide": cmd_decide, "evidence": cmd_evidence, "research-check": cmd_research_check,
+    "mistake": cmd_mistake, "learn": cmd_learn,
     "run-start": cmd_run_start, "run-finish": cmd_run_finish, "persist": cmd_persist,
     "activation-check": cmd_activation_check,
 }
