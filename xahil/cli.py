@@ -895,6 +895,15 @@ def _log_human_action(text: str) -> None:
         fh.write(f"\n## {stamp} - HUMAN ACTION\n- {text}\n")
 
 
+def filled(value: str) -> str:
+    """argparse type: refuse empty text and unfilled {{SLOT}} placeholders copied from a routine prompt."""
+    if not value.strip():
+        raise argparse.ArgumentTypeError("must not be empty")
+    if "{{" in value or "}}" in value:
+        raise argparse.ArgumentTypeError(f"still contains an unfilled {{{{SLOT}}}} placeholder: {value!r}")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="xahil", description="Paper-only trading agent tools")
     sub = p.add_subparsers(dest="command", required=True)
@@ -905,7 +914,7 @@ def build_parser() -> argparse.ArgumentParser:
     o = sub.add_parser("orders")
     o.add_argument("status", nargs="?", default="open", choices=["open", "closed", "all"])
     q = sub.add_parser("quote")
-    q.add_argument("symbol")
+    q.add_argument("symbol", type=filled)
     r = sub.add_parser("reconcile", help="diff broker state vs last snapshot; exit 2 on halt")
     r.add_argument("--workflow", required=True)
 
@@ -916,27 +925,27 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--limit-price", type=float)
 
     cb = sub.add_parser("check-buy", help="risk verdict only, never submits")
-    cb.add_argument("symbol")
+    cb.add_argument("symbol", type=filled)
     size_args(cb)
     b = sub.add_parser("buy")
-    b.add_argument("symbol")
+    b.add_argument("symbol", type=filled)
     size_args(b)
-    b.add_argument("--reason", required=True)
+    b.add_argument("--reason", required=True, type=filled)
     b.add_argument("--workflow", default="manual")
     b.add_argument("--manual", action="store_true", help="local terminal only: type-to-confirm one paper order")
     s = sub.add_parser("sell")
-    s.add_argument("symbol")
+    s.add_argument("symbol", type=filled)
     g = s.add_mutually_exclusive_group(required=True)
     g.add_argument("--qty", type=float)
     g.add_argument("--all", action="store_true")
     s.add_argument("--limit-price", type=float)
     s.add_argument("--risk-exit", action="store_true",
                    help="cut-loss exit; verified by the engine (unrealized P&L at or below the cut level)")
-    s.add_argument("--reason", required=True)
+    s.add_argument("--reason", required=True, type=filled)
     s.add_argument("--workflow", default="manual")
     s.add_argument("--manual", action="store_true")
     pr = sub.add_parser("protect", help="place/replace a protective stop (never lowers it)")
-    pr.add_argument("symbol")
+    pr.add_argument("symbol", type=filled)
     g2 = pr.add_mutually_exclusive_group(required=True)
     g2.add_argument("--trail-pct", type=float)
     g2.add_argument("--stop-pct", type=float)
@@ -950,15 +959,15 @@ def build_parser() -> argparse.ArgumentParser:
     w.add_argument("--week-ending")
     sub.add_parser("telegram-setup", help="read-only: find your Telegram chat id after messaging the bot")
     n = sub.add_parser("notify")
-    n.add_argument("message", nargs="?")
+    n.add_argument("message", nargs="?", type=filled)
     rs = sub.add_parser("research")
-    rs.add_argument("query")
+    rs.add_argument("query", type=filled)
     rs.add_argument("--log", action="store_true", help="record each source in the evidence log")
     rs.add_argument("--topic", choices=["news", "finance", "general"], help="Tavily topic (default news)")
     rs.add_argument("--time-range", choices=["day", "week", "month", "year"], help="Tavily window (default week)")
     rs.add_argument("--max-results", type=int)
     rs.add_argument("--provider", choices=["tavily", "perplexity"], help="force one provider")
-    rs.add_argument("--symbol")
+    rs.add_argument("--symbol", type=filled)
     rs.add_argument("--workflow", default="manual")
     sub.add_parser("guard", help="block commits outside memory/")
     sub.add_parser("halts", help="show persistent halts and unresolved orders")

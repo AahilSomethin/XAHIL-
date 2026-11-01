@@ -50,6 +50,8 @@ The Telegram token travels in the URL, so it can't be a network secret.
 ## 3. The five scheduled tasks
 Create each at claude.ai/code/routines. Paste the prompt file **verbatim** (regenerate with
 `python routines/_build.py` first if you edit anything).
+After saving, reopen the task and check that every `RUN:` line and `{{...}}` slot is intact
+(the editor strips `<...>`; `tests/test_routines.py` simulates it).
 
 | Task name | Prompt file | Schedule (Custom cron, paste exactly) | ET |
 |---|---|---|---|
