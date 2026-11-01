@@ -77,7 +77,7 @@ def strat_initial_trail(strat: dict) -> float:
 
 
 def run_backtest(bars_by_symbol: dict, bench_bars: list, sig: dict, strat: dict, limits, start: str, end: str,
-                 starting_cash: float = 1000.0, regime_filter: bool = False) -> Result:
+                 starting_cash: float = 100000.0, regime_filter: bool = False) -> Result:
     bt = sig["backtest"]
     slip = bt["slippage_bps"] / 10000
     commission = float(bt.get("commission_per_order", 0))
@@ -250,7 +250,7 @@ MIN_TRADES_FOR_EVIDENCE = 20
 
 
 def out_of_sample(bars_by_symbol: dict, bench_bars: list, sig: dict, strat: dict, limits, start: str, end: str,
-                  starting_cash: float = 1000.0, regime_filter: bool = False) -> dict:
+                  starting_cash: float = 100000.0, regime_filter: bool = False) -> dict:
     """Run the unchanged rules on an in-sample window and a later out-of-sample window."""
     dates = [str(b["t"])[:10] for b in bench_bars if start <= str(b["t"])[:10] <= end]
     if len(dates) < 60:

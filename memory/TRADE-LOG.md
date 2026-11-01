@@ -10,6 +10,6 @@ Entry format:
 - Risk engine: APPROVED or the rejection reasons
 
 ## Day 0 - EOD Snapshot (pre-launch baseline)
-**Portfolio:** $1,000.00 | **Cash:** $1,000.00 (100%) | **Day P&L:** $0 | **Since start:** $0
+**Portfolio:** $100,000.00 | **Cash:** $100,000.00 (100%) | **Day P&L:** $0 | **Since start:** $0
 
 No positions yet. Order execution is disabled (dry-run) until the owner approves it.

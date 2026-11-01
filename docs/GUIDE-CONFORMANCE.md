@@ -58,6 +58,6 @@ Legend: **Kept** = as in the guide · **Adapted** = same purpose, safer or updat
 
 ## Deliberate deviations still standing
 1. **Weekly strategy edits removed:** the agent proposes; you approve.
-2. **Whole shares only:** this closes the fractional overnight gap, but restricts the universe to stocks under about $49 at $1,000 capital.
+2. **Whole shares only:** this closes the fractional overnight gap, but at the $100,000 baseline the 5% cap (~$5,000) no longer restricts which stocks fit.
 3. **No PDT fallback ladder:** same-day discretionary round trips are blocked instead; protective exits are always allowed.
 4. **Signals and regime are not entry gates:** making them gates is PENDING proposals P-2026-10-30-1 and -2.

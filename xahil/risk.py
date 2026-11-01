@@ -282,7 +282,7 @@ def account_halt_reasons(account: dict, positions: list, limits: RiskLimits) -> 
     if equity > cap:
         reasons.append(
             f"equity {equity:,.2f} exceeds {limits.max_equity_multiple_of_start:g}x configured starting capital "
-            f"({limits.starting_capital:,.2f}); reset the paper account balance"
+            f"({limits.starting_capital:,.2f}): unexpected deposit, reset or wrong account - investigate"
         )
     if account.get("pattern_day_trader") is True:
         reasons.append("account is flagged as a pattern day trader")

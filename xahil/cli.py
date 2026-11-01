@@ -173,7 +173,7 @@ def recon_halts(state: dict = None) -> list:
     snap = reconcile.load_snapshot(SNAPSHOT_FILE)
     if snap.get("corrupt"):
         reasons.append("broker snapshot file is corrupt; human review needed")
-    elif state and snap.get("account_number") and snap["account_number"] != state["account"].get("account_number"):
+    elif state and snap.get("account_fingerprint") and             snap["account_fingerprint"] != reconcile.account_fingerprint(state["account"]):
         reasons.append("account number differs from the last snapshot (account reset or swap?)")
     return reasons
 
@@ -355,7 +355,8 @@ def cmd_preflight(args, client_factory) -> int:
                          "margin_multiplier": acct.get("multiplier"), "shorting_enabled": acct.get("shorting_enabled")}
     report["persistent_halts"] = recon_halts()
     env = os.environ
-    report["telegram"] = "configured" if env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID") else "fallback-outbox"
+    tg_problem = notify.config_problem(env)
+    report["telegram"] = "configured" if not tg_problem else f"NOT DELIVERABLE ({tg_problem}) - messages go to the outbox"
     from xahil import tavily
     settings = load_integrations()
     tav = {"key": "set" if (env.get("TAVILY_API_KEY") or env.get("XAHIL_TAVILY_AUTH", "").lower() == "proxy")
@@ -775,6 +776,11 @@ def cmd_weekly_stats(args, client_factory) -> int:
     return EXIT_OK
 
 
+def cmd_telegram_setup(args, client_factory) -> int:
+    out({"config_problem": notify.config_problem() or None, **notify.discover_chats()})
+    return EXIT_OK
+
+
 def cmd_notify(args, client_factory) -> int:
     msg = args.message if args.message else sys.stdin.read()
     out(notify.send(msg))
@@ -942,6 +948,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("snapshot", help="record EOD equity + SPY, print EOD markdown")
     w = sub.add_parser("weekly-stats")
     w.add_argument("--week-ending")
+    sub.add_parser("telegram-setup", help="read-only: find your Telegram chat id after messaging the bot")
     n = sub.add_parser("notify")
     n.add_argument("message", nargs="?")
     rs = sub.add_parser("research")
@@ -970,7 +977,7 @@ HANDLERS = {
     "positions": cmd_read, "orders": cmd_read, "quote": cmd_read, "reconcile": cmd_reconcile,
     "check-buy": cmd_check_buy, "buy": cmd_buy, "sell": cmd_sell, "protect": cmd_protect,
     "midday-scan": cmd_midday_scan, "snapshot": cmd_snapshot, "weekly-stats": cmd_weekly_stats,
-    "notify": cmd_notify, "research": cmd_research, "guard": cmd_guard, "halts": cmd_halts,
+    "notify": cmd_notify, "telegram-setup": cmd_telegram_setup, "research": cmd_research, "guard": cmd_guard, "halts": cmd_halts,
     "ack-halt": cmd_ack_halt, "reset-baseline": cmd_reset_baseline,
 }
 

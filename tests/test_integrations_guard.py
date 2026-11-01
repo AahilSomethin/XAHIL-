@@ -135,7 +135,7 @@ class SafeConfig(unittest.TestCase):
     def test_repo_defaults(self):
         lim = load_risk_limits()
         self.assertEqual((lim.starting_capital, lim.max_position_pct, lim.max_total_exposure_pct,
-                          lim.max_new_trades_per_week), (1000, 5, 20, 3))
+                          lim.max_new_trades_per_week), (100000, 5, 20, 3))
         ex = load_execution_settings()
         self.assertFalse(ex.order_execution_enabled)
         self.assertFalse(ex.halt)
@@ -185,3 +185,41 @@ class SafeConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TelegramSetup(unittest.TestCase):
+    TOKEN = "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ0123456789"
+
+    def test_config_problems_detected(self):
+        cases = {
+            "missing": ({}, "not set"),
+            "bad token": ({"TELEGRAM_BOT_TOKEN": "abc", "TELEGRAM_CHAT_ID": "1"}, "digits:secret"),
+            "non-numeric chat": ({"TELEGRAM_BOT_TOKEN": self.TOKEN, "TELEGRAM_CHAT_ID": "@me"}, "numeric"),
+            "chat id is the bot": ({"TELEGRAM_BOT_TOKEN": self.TOKEN, "TELEGRAM_CHAT_ID": "123456789"}, "bot's own id"),
+        }
+        for name, (env, frag) in cases.items():
+            with self.subTest(name):
+                self.assertIn(frag, notify.config_problem(env))
+        self.assertEqual(notify.config_problem({"TELEGRAM_BOT_TOKEN": self.TOKEN, "TELEGRAM_CHAT_ID": "987654321"}), "")
+        self.assertEqual(notify.config_problem({"TELEGRAM_BOT_TOKEN": self.TOKEN, "TELEGRAM_CHAT_ID": "-100123"}), "")
+
+    def test_discover_chats_read_only_and_redacted(self):
+        calls = []
+
+        def get(url):
+            calls.append(url)
+            if url.endswith("/getMe"):
+                return {"ok": True, "result": {"username": "MyBot"}}
+            return {"ok": True, "result": [{"message": {"chat": {"id": 555, "type": "private", "first_name": "A"}}},
+                                           {"message": {"chat": {"id": -9, "type": "group"}}}]}
+        r = notify.discover_chats({"TELEGRAM_BOT_TOKEN": self.TOKEN, "TELEGRAM_CHAT_ID": "123456789"}, get=get)
+        self.assertEqual(r["private_chats"], [{"chat_id": "555", "first_name": "A"}])
+        self.assertTrue(r["configured_chat_id_is_bot_id"])
+        self.assertTrue(all(u.endswith(("/getMe", "/getUpdates")) for u in calls))  # no send calls
+        self.assertNotIn(self.TOKEN.split(":")[1], str(r))
+
+        def boom(url):
+            raise OSError(f"failed {url}")
+        r = notify.discover_chats({"TELEGRAM_BOT_TOKEN": self.TOKEN}, get=boom)
+        self.assertFalse(r["ok"])
+        self.assertNotIn(self.TOKEN.split(":")[1], r["error"])

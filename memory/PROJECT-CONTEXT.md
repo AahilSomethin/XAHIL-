@@ -2,7 +2,7 @@
 
 ## Overview
 - What: XAHIL, a paper-trading swing agent. Claude Code is the agent; Git is the memory.
-- Starting capital: $1,000 virtual (Alpaca paper account reset to $1,000)
+- Starting capital: $100,000 virtual (the existing Alpaca paper account, kept by owner decision on 2026-11-01)
 - Platform: Alpaca **paper** only. Live trading is not supported by this codebase.
 - Strategy: swing trading US stocks/ETFs, long only, cash only
 - Benchmark: SPY (S&P 500 ETF)

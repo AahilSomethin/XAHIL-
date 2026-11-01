@@ -137,6 +137,7 @@ class Backtests(unittest.TestCase):
         self.lim = limits()
 
     def bt(self, start=None, end=None, **kw):
+        kw.setdefault("starting_cash", 1000.0)
         return backtest.run_backtest(self.universe, self.spy, SIG, STRAT, self.lim,
                                      start or self.dates[250], end or self.dates[-1], **kw)
 
@@ -172,7 +173,8 @@ class Backtests(unittest.TestCase):
         crash_day = self.dates[500]
         prices = prices[:500] + [p * 0.7 for p in prices[500:]]
         bars = make_bars(prices, self.dates, gap_down={crash_day})
-        r = backtest.run_backtest({"GAP": bars}, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1])
+        r = backtest.run_backtest({"GAP": bars}, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1],
+                                  starting_cash=1000.0)
         gapped = [t for t in r.trades if t.exit_date == crash_day]
         self.assertTrue(gapped, "a position should be open into the gap on a steady uptrend")
         self.assertIn("gapped", gapped[0].exit_reason)
@@ -184,12 +186,14 @@ class Backtests(unittest.TestCase):
         a = self.bt(end=self.dates[-1])
         altered = {s: b[:451] + [{**x, "o": x["o"] * 0.5, "h": x["h"] * 0.5, "l": x["l"] * 0.5, "c": x["c"] * 0.5}
                                  for x in b[451:]] for s, b in self.universe.items()}
-        b = backtest.run_backtest(altered, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1])
+        b = backtest.run_backtest(altered, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1],
+                                  starting_cash=1000.0)
         before = lambda r: [(t.symbol, t.entry_date, t.entry_price) for t in r.trades if t.entry_date <= cut]  # noqa
         self.assertEqual(before(a), before(b))
 
     def test_out_of_sample_split(self):
-        res = backtest.out_of_sample(self.universe, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1])
+        res = backtest.out_of_sample(self.universe, self.spy, SIG, STRAT, self.lim, self.dates[250], self.dates[-1],
+                                     starting_cash=1000.0)
         ins, oos = res["in_sample"], res["out_of_sample"]
         self.assertLess(ins.equity_curve[-1][0], res["split_date"])
         self.assertEqual(oos.equity_curve[0][0], res["split_date"])
@@ -214,7 +218,7 @@ class Backtests(unittest.TestCase):
     def test_regime_filter_blocks_entries_in_downtrend(self):
         spy_down = make_bars([400 * 0.998 ** i for i in range(700)], self.dates)
         r = backtest.run_backtest(self.universe, spy_down, SIG, STRAT, self.lim, self.dates[250], self.dates[-1],
-                                  regime_filter=True)
+                                  regime_filter=True, starting_cash=1000.0)
         self.assertEqual(r.trades, [])
 
 

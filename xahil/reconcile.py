@@ -8,6 +8,7 @@ raise a persistent halt that a human must acknowledge.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -18,11 +19,23 @@ from xahil.risk import _f, account_halt_reasons, long_market_value, overnight_pr
 QTY_EPS = 1e-6
 
 
+def account_fingerprint(account: dict) -> str:
+    """One-way fingerprint so Git-backed snapshots can detect an account switch without storing the number."""
+    number = str(account.get("account_number") or "")
+    if not number:
+        return ""
+    return number[:2] + "-" + hashlib.sha256(number.encode("utf-8")).hexdigest()[:12]
+
+
+def _fp(snap: dict) -> str:
+    return snap.get("account_fingerprint") or ""
+
+
 def build_snapshot(as_of: str, workflow: str, account: dict, positions: list, open_orders: list) -> dict:
     return {
         "as_of": as_of,
         "workflow": workflow,
-        "account_number": account.get("account_number"),
+        "account_fingerprint": account_fingerprint(account),
         "equity": round(_f(account.get("equity")), 2),
         "cash": round(_f(account.get("cash")), 2),
         "long_value": round(long_market_value(positions), 2),
@@ -56,7 +69,7 @@ def diff_snapshots(prev: dict, cur: dict) -> list:
     if not prev:
         return ["no previous snapshot (first run)"]
     out = []
-    if prev.get("account_number") and prev.get("account_number") != cur.get("account_number"):
+    if _fp(prev) and _fp(prev) != _fp(cur):
         out.append("ACCOUNT CHANGED since last snapshot")
     pp, cp = prev.get("positions", {}), cur.get("positions", {})
     for sym in sorted(set(pp) | set(cp)):
@@ -90,7 +103,7 @@ def _dedupe_fills(fills: list) -> list:
 
 def unexplained_changes(prev: dict, cur: dict, fills_since_prev: list) -> list:
     """Position or equity changes that the broker's own fills since the last snapshot do not explain."""
-    if not prev or prev.get("account_number") != cur.get("account_number"):
+    if not prev or _fp(prev) != _fp(cur):
         return []
     fills = _dedupe_fills(fills_since_prev)
     net = defaultdict(float)
@@ -147,7 +160,7 @@ def reconcile(prev: dict, as_of: str, workflow: str, account: dict, positions: l
               open_orders: list, limits: RiskLimits, market_open: bool, fills_since_prev: list = None) -> dict:
     snap = build_snapshot(as_of, workflow, account, positions, open_orders)
     halts = account_halt_reasons(account, positions, limits)
-    account_changed = bool(prev.get("account_number")) and prev.get("account_number") != snap["account_number"]
+    account_changed = bool(_fp(prev)) and _fp(prev) != _fp(snap)
     return {
         "snapshot": snap,
         "differences": diff_snapshots(prev, snap),

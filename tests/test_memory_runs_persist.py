@@ -224,7 +224,7 @@ class Persistence(unittest.TestCase):
 class Activation(unittest.TestCase):
     def report(self, **kw):
         base = dict(acct=account(), positions=[], open_orders=[], limits=limits(),
-                    env={"TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_CHAT_ID": "c"}, halts=[], completed_summaries=5,
+                    env={"TELEGRAM_BOT_TOKEN": "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ0123456789", "TELEGRAM_CHAT_ID": "987654321"}, halts=[], completed_summaries=5,
                     completed_reviews=1, latest_backtest={"assessment": {"verdict": "inconclusive"}},
                     snapshot_exists=True)
         base.update(kw)

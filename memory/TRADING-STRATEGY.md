@@ -6,15 +6,15 @@
 
 ## Mission
 Learn whether a disciplined, research-driven swing strategy can beat the S&P 500
-(SPY) on a **$1,000 Alpaca paper account**. No real money. Patience beats activity.
+(SPY) on a **$100,000 Alpaca paper account** (baseline set 2026-11-01). No real money. Patience beats activity.
 
 ## Hard Risk Limits (enforced in code by `xahil` - not negotiable)
 1. Paper endpoint only (`https://paper-api.alpaca.markets/v2`).
 2. Cash only. No margin, no leverage, no short selling.
 3. Long-only US-listed stocks and ETFs. No options, futures, crypto, OTC,
    leveraged, inverse or volatility products.
-4. Max **5%** of equity per position (about $50 at start).
-5. Max **20%** total long exposure (about $200 at start). The other 80% stays in cash.
+4. Max **5%** of equity per position (about $5,000 at start).
+5. Max **20%** total long exposure (about $20,000 at start). The other 80% stays in cash.
 6. Max **3 new buy orders per week** (Mon-Sun ET), counted from Alpaca.
 7. Max 4 open positions.
 

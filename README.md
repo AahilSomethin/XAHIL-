@@ -1,13 +1,13 @@
 ﻿# XAHIL - AI Trading Agent (paper only)
 
-A Claude Code swing-trading agent on an **Alpaca paper account with $1,000 of virtual money**,
+A Claude Code swing-trading agent on an **Alpaca paper account with $100,000 of virtual money**,
 adapted from Nate Herk's "Opus 4.7 Trading Bot - Setup Guide". **Claude is the decision-maker**
 (research, catalysts, thesis judgement, reviews). **Python (`python -m xahil`) is the deterministic
 layer**: paper-only broker access, risk engine, protection, reconciliation, analysis, memory and
 run safety.
 
-- **Status:** Phase 3 complete and tested. Order execution is **off** (dry-run). No scheduled tasks are active.
-- **Start here:** [docs/SETUP.md](docs/SETUP.md) · Latest results: [docs/PHASE3-ACCEPTANCE.md](docs/PHASE3-ACCEPTANCE.md)
+- **Status:** Phase 4 cloud dry-run prepared ($100,000 baseline). Order execution is **off** (dry-run). No scheduled tasks are active.
+- **Start here:** [docs/SETUP.md](docs/SETUP.md) · Latest: [docs/PHASE4-READINESS.md](docs/PHASE4-READINESS.md) · Deploy: [docs/CLOUD-DEPLOYMENT.md](docs/CLOUD-DEPLOYMENT.md)
 - **Why it differs from the guide:** [docs/AUDIT.md](docs/AUDIT.md), [docs/GUIDE-CONFORMANCE.md](docs/GUIDE-CONFORMANCE.md)
 
 ## How a run works

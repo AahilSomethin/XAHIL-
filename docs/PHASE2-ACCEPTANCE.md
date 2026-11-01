@@ -1,5 +1,7 @@
 # Phase 2 Acceptance: Alpaca Paper Integration, Telegram Validation, Phase 3 Readiness
 
+> **Superseded baseline (2026-11-01):** this report was written for a $1,000 baseline. The owner kept the $100,000 paper account; blocker "reset to $1,000" no longer applies. See docs/PHASE4-READINESS.md.
+
 | | |
 |---|---|
 | First run | 2026-10-29 23:49–23:55 ET (market closed) |

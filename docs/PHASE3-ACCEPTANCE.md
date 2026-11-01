@@ -1,5 +1,7 @@
 # Phase 3 Acceptance: Trading Intelligence and Operational Readiness
 
+> **Superseded baseline (2026-11-01):** this report was written for a $1,000 baseline. The owner kept the $100,000 paper account; blocker "reset to $1,000" no longer applies. See docs/PHASE4-READINESS.md.
+
 | | |
 |---|---|
 | Date | 2026-10-30, 00:15–01:05 ET (market closed) |

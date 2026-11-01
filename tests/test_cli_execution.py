@@ -228,15 +228,17 @@ class RiskThroughCli(CliHarness):
 
 
 class Workflows(CliHarness):
-    def test_reconcile_writes_snapshot_and_halts_on_100k(self):
-        fake = FakeAlpaca(account=account(equity="100000", cash="100000"))
+    def test_reconcile_writes_snapshot_and_halts_on_unexpected_balance(self):
+        fake = FakeAlpaca(account=account(equity="400000", cash="400000"))
         code, text = self.run_cli(["reconcile", "--workflow", "pre-market"], fake)
         self.assertEqual(code, cli.EXIT_HALT)
         self.assertTrue((self.tmp / "snap.json").exists())
-        self.assertIn("reset the paper account", (self.tmp / "RECON.md").read_text())
+        self.assertIn("investigate", (self.tmp / "RECON.md").read_text())
 
     def test_reconcile_detects_account_swap(self):
-        (self.tmp / "snap.json").write_text(json.dumps({"account_number": "PA999"}))
+        from xahil import reconcile
+        (self.tmp / "snap.json").write_text(json.dumps(
+            {"account_fingerprint": reconcile.account_fingerprint({"account_number": "PA999"})}))
         code, _ = self.run_cli(["reconcile", "--workflow", "midday"], FakeAlpaca())
         self.assertEqual(code, cli.EXIT_HALT)
 
@@ -259,7 +261,7 @@ class Workflows(CliHarness):
         self.assertIn("580.5", (self.tmp / "hist.csv").read_text())
 
     def test_snapshot_refuses_bad_baseline(self):
-        fake = FakeAlpaca(account=account(equity="100000", cash="100000"))
+        fake = FakeAlpaca(account=account(equity="400000", cash="400000"))
         code, text = self.run_cli(["snapshot"], fake)
         self.assertEqual(code, cli.EXIT_HALT)
         self.assertFalse((self.tmp / "hist.csv").exists())

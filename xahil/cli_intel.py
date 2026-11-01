@@ -258,7 +258,9 @@ def activation_report(acct: dict, positions: list, open_orders: list, limits, en
     gaps = overnight_protection_gaps(positions, open_orders)
     item("overnight_protection", not gaps,
          "every position is whole shares with an open GTC stop" if not gaps else f"UNPROTECTED overnight: {gaps}")
-    item("telegram", bool(env.get("TELEGRAM_BOT_TOKEN") and env.get("TELEGRAM_CHAT_ID")), "alerts can reach you")
+    from xahil import notify
+    tg = notify.config_problem(env)
+    item("telegram", not tg, "alerts can reach you (config check; send a real test with `notify`)" if not tg else tg)
     item("dry_run_track_record", completed_summaries >= 5 and completed_reviews >= 1,
          f"{completed_summaries} completed daily summaries (need 5), {completed_reviews} weekly reviews (need 1)")
     if latest_backtest:

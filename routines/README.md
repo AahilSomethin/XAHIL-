@@ -39,7 +39,7 @@ half-days come from Alpaca's calendar.
 - A position counts as protected overnight only with an **open GTC stop or trailing stop on whole shares**. DAY stops (the only kind Alpaca allows on fractional shares) expire at the close and never count.
 - While any position lacks GTC protection, **all new entries are refused**, Telegram alerts fire after the close, and `activation-check` is not ready.
 - Even a GTC stop does not stop an overnight gap: a gap through the stop fills at the next open. The backtest models this (worst historical trade: −22.8% against a 10% stop).
-- Consequence at $1,000: only stocks under about $49/share fit the $50 position cap.
+- At the $100,000 baseline the position cap is about $5,000, so whole shares fit almost any US stock.
 
 ## Cloud environment (one environment shared by all five tasks)
 1. **Network access → Custom**, allowed domains: `paper-api.alpaca.markets`, `data.alpaca.markets`,
@@ -50,11 +50,15 @@ half-days come from Alpaca's calendar.
    `APCA-API-KEY-ID` and `APCA-API-SECRET-KEY` (paper keys only). "Tavily" for host `api.tavily.com`:
    header `Authorization`, prefix `Bearer`, value your `tvly-` key, plus the variable `XAHIL_TAVILY_AUTH=proxy`.
    Optional later: Perplexity (`Authorization`, prefix `Bearer`).
-3. **Environment variables**: `XAHIL_CLOUD=1`, `XAHIL_ALPACA_AUTH=proxy`, `TELEGRAM_BOT_TOKEN`,
+3. **Environment variables**: `XAHIL_CLOUD=1`, `XAHIL_ALPACA_AUTH=proxy`, `XAHIL_TAVILY_AUTH=proxy`, `TELEGRAM_BOT_TOKEN`,
    `TELEGRAM_CHAT_ID`. Telegram puts its token in the URL, so it can't be a network secret. If
    network secrets don't work, use `XAHIL_ALPACA_AUTH=headers` with `ALPACA_API_KEY` /
    `ALPACA_SECRET_KEY` (paper, `PK…`). Never set `ALPACA_ENDPOINT` to anything but the paper URL.
 4. **Do not** set `XAHIL_ORDER_EXECUTION`.
+5. **Remove every connector from every task.** New tasks include all your claude.ai connectors by default, and
+   some can trade or enable trading outside XAHIL's risk engine. XAHIL needs none.
+
+Step-by-step owner checklist: [docs/CLOUD-DEPLOYMENT.md](../docs/CLOUD-DEPLOYMENT.md).
 
 ## Repository and pushes
 Select this repo, branch `main`. `persist` pushes `memory/` commits with `HEAD:main`, so `main`
@@ -63,8 +67,8 @@ Git's union driver; any other conflict (snapshot, halts, run markers) stops the 
 guessing. Review bot commits with `git log -p -- memory/`.
 
 ## Activation (later, only with your explicit approval)
-1. `python -m xahil activation-check` reports the blocking preconditions: paper account, $1,000-range
-   equity, reconciled baseline, no halts, GTC protection on every position, Telegram, at least
+1. `python -m xahil activation-check` reports the blocking preconditions: paper account, equity within
+   0.5x-3x of the $100,000 baseline, reconciled baseline, no halts, GTC protection on every position, Telegram, at least
    5 completed dry-run daily summaries and 1 weekly review.
 2. Read the latest backtest report in `memory/backtests/` and the weekly learning analysis.
 3. Only then, yourself: set `"order_execution_enabled": true`, `"approved_by"`, `"approved_on"` in

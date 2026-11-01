@@ -1,5 +1,7 @@
 # Audit of "Opus 4.7 Trading Bot — Setup Guide" (Nate Herk, 28 pp.)
 
+> **Update 2026-11-01:** the owner kept the existing $100,000 paper account. `starting_capital` is now 100000; the percentage limits are unchanged ($5,000 per position, $20,000 total). The $1,000 rows below are kept as the original audit record.
+
 Audited 2026-10-30 against your requirements, current Claude Code scheduled-task
 docs (code.claude.com/docs/en/routines, /cloud-environments) and Alpaca's
 fractional-trading docs. Severity: **Critical** = could lose real money or

@@ -95,7 +95,7 @@ class BuyRules(unittest.TestCase):
     def test_default_100k_paper_balance_blocks_buys(self):
         v = evaluate_order(buy(notional=40), ctx(account=account(equity="100000", cash="100000")))
         self.assertIn("no_halt", failed(v))
-        self.assertTrue(any("reset the paper account" in r for r in v.reasons))
+        self.assertTrue(any("investigate" in r for r in v.reasons))
 
     def test_non_paper_account_halts(self):
         self.assertIn("no_halt", failed(evaluate_order(buy(), ctx(account=account(account_number="9XYZ")))))

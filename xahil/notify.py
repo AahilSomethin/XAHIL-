@@ -75,3 +75,51 @@ def send(msg: str, env=None, post=_post, outbox: Path = OUTBOX) -> dict:
     reason = redact(f"Telegram HTTP {status}: {body[:200]}", token)
     append_outbox(msg, "fallback - " + reason, outbox)
     return {"sent": False, "fallback": True, "reason": reason}
+
+
+def config_problem(env=None) -> str:
+    """Detect common Telegram misconfigurations without contacting Telegram. Empty string = looks fine."""
+    env = os.environ if env is None else env
+    token = env.get("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = env.get("TELEGRAM_CHAT_ID", "").strip()
+    if not token or not chat_id:
+        return "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set"
+    if not re.match(r"^\d+:[A-Za-z0-9_-]{30,}$", token):
+        return "TELEGRAM_BOT_TOKEN is not in the digits:secret format from @BotFather"
+    if not re.match(r"^-?\d+$", chat_id):
+        return "TELEGRAM_CHAT_ID must be numeric (run `python -m xahil telegram-setup`)"
+    if chat_id == token.split(":", 1)[0]:
+        return ("TELEGRAM_CHAT_ID is the bot's own id; a bot cannot message itself. Message the bot from your "
+                "Telegram account, then run `python -m xahil telegram-setup` to find your chat id")
+    return ""
+
+
+def _get(url: str) -> dict:
+    with urllib.request.urlopen(url, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def discover_chats(env=None, get=_get) -> dict:
+    """Read-only: who has messaged the bot recently? Never prints the token."""
+    env = os.environ if env is None else env
+    token = env.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        return {"ok": False, "error": "TELEGRAM_BOT_TOKEN not set"}
+    base = f"{TELEGRAM_API}/bot{token}"
+    try:
+        me = get(f"{base}/getMe")
+        updates = get(f"{base}/getUpdates")
+    except Exception as exc:  # report, never raise; redact the token
+        return {"ok": False, "error": redact(str(exc), token)}
+    chats = {}
+    for u in updates.get("result", []):
+        for key in ("message", "edited_message", "my_chat_member"):
+            c = (u.get(key) or {}).get("chat") or {}
+            if c.get("type") == "private":
+                chats[str(c["id"])] = c.get("first_name") or c.get("username") or ""
+    bot_id = token.split(":", 1)[0]
+    return {"ok": True, "bot_username": (me.get("result") or {}).get("username"),
+            "private_chats": [{"chat_id": cid, "first_name": n} for cid, n in chats.items()],
+            "configured_chat_id_is_bot_id": env.get("TELEGRAM_CHAT_ID", "").strip() == bot_id,
+            "next_step": ("put your chat_id into .env as TELEGRAM_CHAT_ID, then `python -m xahil notify \"test\"`"
+                          if chats else "open Telegram, search for the bot, press Start or send any message, then rerun")}

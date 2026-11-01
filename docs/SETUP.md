@@ -27,10 +27,9 @@ prepaid credit, keep auto top-up **off**, and leave `monthly_request_cap`
 
 ## 2. Alpaca paper account
 - [ ] Sign in at alpaca.markets and switch the dashboard to **Paper Trading**.
-- [ ] **Reset the paper account balance to $1,000.** It defaults to $100,000.
-      Buys stay blocked while equity is above $3,000, on purpose. Do this before the
-      first real `reconcile`. If you reset later, XAHIL detects it, halts, and you run
-      `python -m xahil reset-baseline` in your own terminal to start fresh.
+- [ ] **Keep the $100,000 paper balance** (owner decision 2026-11-01; `starting_capital` is 100000).
+      Do NOT reset the account: XAHIL would detect the change, halt, and need
+      `python -m xahil reset-baseline` in your own terminal. Buys halt if equity is ever above $300,000.
 - [ ] Optional but recommended: in paper account settings, turn off shorting
       and set the max margin multiplier to 1. The code already enforces cash
       only and long only; this adds a second layer.
@@ -48,11 +47,15 @@ prepaid credit, keep auto top-up **off**, and leave `monthly_request_cap`
 - [ ] `python -m xahil preflight` should show `research.tavily.status: available`.
 - [ ] `python -m xahil research "Ford Motor earnings" --topic news` (1 credit) should list dated sources.
 
+## 3c. Telegram chat id
+- [ ] `TELEGRAM_CHAT_ID` must be YOUR chat id, not the bot's. Message the bot, then run
+      `python -m xahil telegram-setup` and copy the `chat_id` it lists into `.env`.
+
 ## 4. Local smoke test
 - [ ] Copy `.env.example` to `.env` and fill in the paper keys and Telegram values.
 - [ ] `python -m xahil preflight`: should show `paper_endpoint`, `number_prefix: "PA"`, `execution_mode: "dry-run"`.
 - [ ] `python -m xahil market-status`
-- [ ] `python -m xahil reconcile --workflow smoke-test` (exit 0 once the balance is $1,000)
+- [ ] `python -m xahil reconcile --workflow smoke-test` (expect exit 0 at $100,000)
 - [ ] `python -m xahil notify "XAHIL test message"`: arrives in Telegram.
 - [ ] Optional: in Claude Code, run `/portfolio`, then `/pre-market`.
 

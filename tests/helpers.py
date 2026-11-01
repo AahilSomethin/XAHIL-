@@ -10,7 +10,9 @@ DATA = "https://data.alpaca.markets/v2"
 
 
 def limits(**kw) -> RiskLimits:
-    return RiskLimits(denylist=load_denylist(), **kw)
+    # Pure risk-engine tests use a small-number world ($1,000 baseline, equity fixtures of 1000) so
+    # the percentage rules stay easy to read. The production baseline ($100,000) is tested separately.
+    return RiskLimits(denylist=load_denylist(), **{"starting_capital": 1000.0, **kw})
 
 
 def account(**kw) -> dict:

@@ -493,7 +493,9 @@ class CliScenarios(CliHarness):
         self.write_prev(1000, number="PA0000001")
         code, _ = self.run_cli(["reconcile", "--workflow", "pre-market"], FakeAlpaca())
         self.assertEqual(code, cli.EXIT_HALT)
-        self.assertEqual(json.loads((self.tmp / "snap.json").read_text())["account_number"], "PA0000001")
+        kept = json.loads((self.tmp / "snap.json").read_text())
+        self.assertEqual(kept["account_fingerprint"], reconcile.account_fingerprint({"account_number": "PA0000001"}))
+        self.assertNotIn("account_number", kept)  # the raw number is never stored in Git-backed memory
         self.assertIn("account-changed", (self.tmp / "halts.json").read_text())
 
     def test_position_vanished_without_fill_halts(self):

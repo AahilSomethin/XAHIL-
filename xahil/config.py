@@ -24,7 +24,7 @@ APPROVED_DATA_ENDPOINT = "https://data.alpaca.markets/v2"
 HARD_MAX_POSITION_PCT = 5.0
 HARD_MAX_TOTAL_EXPOSURE_PCT = 20.0
 HARD_MAX_NEW_TRADES_PER_WEEK = 3
-HARD_STARTING_CAPITAL = 1000.0
+DEFAULT_STARTING_CAPITAL = 100000.0  # owner decision 2026-11-01: keep the $100k Alpaca paper account
 HARD_MAX_QUOTE_AGE_SECONDS = 300.0
 
 
@@ -34,7 +34,7 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class RiskLimits:
-    starting_capital: float = HARD_STARTING_CAPITAL
+    starting_capital: float = DEFAULT_STARTING_CAPITAL
     max_position_pct: float = HARD_MAX_POSITION_PCT
     max_total_exposure_pct: float = HARD_MAX_TOTAL_EXPOSURE_PCT
     max_new_trades_per_week: int = HARD_MAX_NEW_TRADES_PER_WEEK
