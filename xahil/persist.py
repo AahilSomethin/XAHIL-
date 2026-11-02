@@ -24,12 +24,14 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Optional
 
-from xahil import guard
+from xahil import gitexe, guard
 from xahil.config import ROOT
 
 CLAIM_LOST, DENIED, NETWORK, CONFLICT, INTEGRITY, UNSAFE, GIT = (
@@ -94,8 +96,10 @@ def load_settings(repo: Path = ROOT, overrides: Optional[dict] = None) -> dict:
 
 def _run(cwd: Path, args: list) -> subprocess.CompletedProcess:
     """Single place every git call goes through (tests patch this to inject failures)."""
-    env = dict(os.environ, GIT_TERMINAL_PROMPT="0", LC_ALL="C")
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env)
+    try:
+        return gitexe.run(cwd, args, GIT_TERMINAL_PROMPT="0", LC_ALL="C")
+    except (gitexe.GitNotFound, OSError) as exc:
+        raise PersistError(GIT, f"cannot run git: {exc}") from exc
 
 
 def _sleep(seconds: float) -> None:
@@ -273,10 +277,19 @@ def _worktree(repo: Path) -> Path:
     return _git_dir(repo) / WORKTREE_DIR
 
 
+def _make_writable_and_retry(func, path, _exc_info) -> None:
+    os.chmod(path, stat.S_IWRITE)  # Windows refuses to delete read-only files
+    func(path)
+
+
 def _drop_worktree(repo: Path) -> None:
     wt = _worktree(repo)
     if wt.exists():
-        shutil.rmtree(wt, ignore_errors=True)
+        kw = {"onexc": _make_writable_and_retry} if sys.version_info >= (3, 12) else {"onerror": _make_writable_and_retry}
+        try:
+            shutil.rmtree(wt, **kw)
+        except OSError:
+            pass  # a leftover directory makes the next `worktree add` fail loudly (fail closed)
     _run(repo, ["worktree", "prune"])
 
 

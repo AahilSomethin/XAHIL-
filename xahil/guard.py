@@ -6,8 +6,7 @@ Code, config, prompts, the strategy and this guard are human-owned.
 
 from __future__ import annotations
 
-import subprocess
-
+from xahil import gitexe
 from xahil.config import ROOT
 
 AGENT_WRITABLE_PREFIXES = ("memory/",)
@@ -33,10 +32,10 @@ def classify(paths: list) -> list:
 
 
 def changed_paths() -> list:
-    out = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all"],
-        cwd=ROOT, capture_output=True, text=True, check=True,
-    ).stdout
+    res = gitexe.run(ROOT, ["status", "--porcelain", "--untracked-files=all"])
+    if res.returncode != 0:
+        raise RuntimeError(f"git status failed: {(res.stderr or res.stdout).strip()[:300]}")
+    out = res.stdout
     paths = []
     for line in out.splitlines():
         entry = line[3:]

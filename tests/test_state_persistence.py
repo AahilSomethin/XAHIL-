@@ -17,7 +17,7 @@ from unittest import mock
 
 from tests.helpers import FakeAlpaca
 from tests.test_cli_execution import CliHarness
-from xahil import cli, cli_intel, persist, runs
+from xahil import cli, cli_intel, gitexe, persist, runs
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = "claude/xahil-state"
@@ -50,48 +50,63 @@ fatal: unable to access 'https://github.com/AahilSomethin/XAHIL-/': The requeste
 
 
 def git(cwd, *args, check=True):
-    res = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    res = gitexe.run(cwd, list(args))  # same portable resolution as production (Windows-safe)
     if check and res.returncode != 0:
         raise AssertionError(f"git {args} failed: {res.stderr}")
     return res.stdout
 
 
+def put(path, text):
+    """Write with LF line endings on every OS (Path.write_text would write CRLF on Windows)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode("utf-8"))
+
+
 class StateRepo(unittest.TestCase):
-    """A remote with main + the state branch, the proxy-like hook, and two agent clones (a, b)."""
+    """A remote with main + the state branch, the proxy-like hook, and two agent clones (a, b).
+
+    Every git process runs with an empty global config and no system config, so the developer's
+    settings (Git for Windows defaults to core.autocrlf=true; some set commit.gpgsign) cannot change
+    the outcome. WindowsCheckout below tests autocrlf=true explicitly."""
 
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, True)
+        put(self.root / "empty.gitconfig", "")
+        env = mock.patch.dict("os.environ", {"GIT_CONFIG_GLOBAL": str(self.root / "empty.gitconfig"),
+                                             "GIT_CONFIG_NOSYSTEM": "1"})
+        env.start()
+        self.addCleanup(env.stop)
         self.remote = self.root / "remote.git"
         git(self.root, "init", "--bare", "-b", "main", str(self.remote))
         seed = self.root / "seed"
-        git(self.root, "clone", str(self.remote), str(seed))
+        git(self.root, "clone", "-c", "core.autocrlf=false", str(self.remote), str(seed))
         self.identity(seed)
-        (seed / "memory" / "state").mkdir(parents=True)
-        (seed / "memory" / "state" / "decisions.jsonl").write_text('{"id": "seed"}\n')
-        (seed / "memory" / "state" / "broker_snapshot.json").write_text('{"equity": 100000}\n')
-        (seed / "memory" / "TRADE-LOG.md").write_text("# Trade log\n")
-        (seed / "memory" / "TRADING-STRATEGY.md").write_text("rules v1\n")
-        (seed / "xahil.py").write_text("code v1\n")
-        shutil.copy(ROOT / ".gitattributes", seed / ".gitattributes")
+        put(seed / "memory" / "state" / "decisions.jsonl", '{"id": "seed"}\n')
+        put(seed / "memory" / "state" / "broker_snapshot.json", '{"equity": 100000}\n')
+        put(seed / "memory" / "TRADE-LOG.md", "# Trade log\n")
+        put(seed / "memory" / "TRADING-STRATEGY.md", "rules v1\n")
+        put(seed / "xahil.py", "code v1\n")
+        put(seed / ".gitattributes", (ROOT / ".gitattributes").read_text(encoding="utf-8-sig"))
         git(seed, "add", ".")
         git(seed, "commit", "-m", "seed")
         git(seed, "push", "origin", "HEAD:main", f"HEAD:refs/heads/{STATE}")
         hook = self.remote / "hooks" / "pre-receive"
-        hook.write_text(HOOK)
+        put(hook, HOOK)  # LF only: "#!/bin/sh\r" would break the hook
         hook.chmod(0o755)
         self.main_sha = self.remote_sha("main")
         self.a, self.b = self.clone("a"), self.clone("b")
 
     @staticmethod
-    def identity(repo):
-        for k, v in (("user.email", "test@example.com"), ("user.name", "test"), ("core.autocrlf", "false")):
+    def identity(repo, autocrlf="false"):
+        for k, v in (("user.email", "test@example.com"), ("user.name", "test"), ("core.autocrlf", autocrlf),
+                     ("commit.gpgsign", "false")):
             git(repo, "config", k, v)
 
-    def clone(self, name, branch=None):
+    def clone(self, name, branch=None, autocrlf="false"):
         d = self.root / name
-        git(self.root, "clone", str(self.remote), str(d))
-        self.identity(d)
+        git(self.root, "clone", "-c", f"core.autocrlf={autocrlf}", str(self.remote), str(d))
+        self.identity(d, autocrlf)
         if branch:
             git(d, "checkout", "-q", "-b", branch)
         return d
@@ -111,7 +126,7 @@ class StateRepo(unittest.TestCase):
     def append(self, repo, rel, line):
         p = repo / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        with p.open("a") as fh:
+        with p.open("a", encoding="utf-8", newline="") as fh:
             fh.write(line)
 
     def claim(self, repo, workflow="midday", when=None):
@@ -135,7 +150,7 @@ class MemorySync(StateRepo):
         self.append(self.b, "memory/RESEARCH-LOG.md", "## 2026-10-28\n")
         self.save(self.b)
         # The owner changes the rulebook on main; the state branch keeps its old copy.
-        (self.a / "memory" / "TRADING-STRATEGY.md").write_text("rules v2\n")
+        put(self.a / "memory" / "TRADING-STRATEGY.md", "rules v2\n")
         git(self.a, "commit", "-qam", "owner rule change")
         res = self.sync(self.a)
         self.assertEqual((self.a / "memory" / "RESEARCH-LOG.md").read_text(), "## 2026-10-28\n")
@@ -170,7 +185,7 @@ class MemorySync(StateRepo):
         self.sync(self.a)  # nothing unsaved
 
     def test_refuses_code_changes(self):
-        (self.a / "xahil.py").write_text("tampered\n")
+        put(self.a / "xahil.py", "tampered\n")
         with self.assertRaises(persist.PersistError) as ctx:
             self.sync(self.a)
         self.assertEqual(ctx.exception.kind, persist.UNSAFE)
@@ -206,12 +221,12 @@ class Persist(StateRepo):
 
     def test_guard_blocks_code_and_human_only_changes(self):
         self.sync(self.a)
-        (self.a / "xahil.py").write_text("evil\n")
+        put(self.a / "xahil.py", "evil\n")
         with self.assertRaises(persist.PersistError) as ctx:
             self.save(self.a)
         self.assertEqual(ctx.exception.kind, persist.UNSAFE)
         git(self.a, "checkout", "--", "xahil.py")
-        (self.a / "memory" / "TRADING-STRATEGY.md").write_text("agent edit\n")
+        put(self.a / "memory" / "TRADING-STRATEGY.md", "agent edit\n")
         with self.assertRaises(persist.PersistError):
             self.save(self.a)
         self.assertEqual(self.remote_file("memory/TRADING-STRATEGY.md"), "rules v1\n")
@@ -230,7 +245,7 @@ class Persist(StateRepo):
 
     def test_does_not_revert_files_another_run_changed(self):
         self.sync(self.a), self.sync(self.b)
-        (self.a / "memory" / "state" / "broker_snapshot.json").write_text('{"equity": 101000}\n')
+        put(self.a / "memory" / "state" / "broker_snapshot.json", '{"equity": 101000}\n')
         self.save(self.a, "a snapshot")
         self.append(self.b, "memory/TRADE-LOG.md", "b line\n")
         self.save(self.b, "b log")
@@ -239,8 +254,8 @@ class Persist(StateRepo):
 
     def test_conflict_on_non_union_file_fails_closed(self):
         self.sync(self.a), self.sync(self.b)
-        (self.a / "memory" / "state" / "broker_snapshot.json").write_text('{"equity": 1}\n')
-        (self.b / "memory" / "state" / "broker_snapshot.json").write_text('{"equity": 2}\n')
+        put(self.a / "memory" / "state" / "broker_snapshot.json", '{"equity": 1}\n')
+        put(self.b / "memory" / "state" / "broker_snapshot.json", '{"equity": 2}\n')
         self.save(self.a)
         tip = self.remote_sha(STATE)
         with self.assertRaises(persist.PersistError) as ctx:
@@ -256,7 +271,7 @@ class Persist(StateRepo):
         other = self.clone("owner")
         git(other, "checkout", "-q", "--orphan", "x")
         (other / "memory").mkdir(exist_ok=True)
-        (other / "memory" / "TRADE-LOG.md").write_text("rewritten\n")
+        put(other / "memory" / "TRADE-LOG.md", "rewritten\n")
         git(other, "add", "-A")
         git(other, "commit", "-qm", "rewrite")
         git(other, "push", "origin", "HEAD:refs/heads/claude/rewrite")  # get the object onto the remote
@@ -310,7 +325,7 @@ class Claims(StateRepo):
         session = self.clone("session", branch="claude/session-1")
         self.sync(session)
         _, claim_s = self.claim(session)
-        (self.remote / "DENY_REF").write_text(f"refs/heads/{STATE}")
+        put(self.remote / "DENY_REF", f"refs/heads/{STATE}")
         with self.assertRaises(persist.PersistError) as ctx:
             self.save(session, "claim", claim=claim_s)
         self.assertEqual(ctx.exception.kind, persist.DENIED)
@@ -336,7 +351,7 @@ class Failures(StateRepo):
     def test_denied_push_is_not_retried_and_never_rebased(self):
         self.sync(self.a)
         self.append(self.a, "memory/TRADE-LOG.md", "x\n")
-        (self.remote / "DENY_ALL").write_text("")
+        put(self.remote / "DENY_ALL", "")
         seen, spy = self.calls()
         with mock.patch.object(persist, "_run", spy), self.assertRaises(persist.PersistError) as ctx:
             self.save(self.a)
@@ -439,7 +454,7 @@ class Recovery(StateRepo):
         session = self.clone("session", branch="claude/session-1")
         self.sync(session)
         self.append(session, "memory/TRADE-LOG.md", "run result\n")
-        (self.remote / "DENY_REF").write_text(f"refs/heads/{STATE}")
+        put(self.remote / "DENY_REF", f"refs/heads/{STATE}")
         with self.assertRaises(persist.PersistError) as ctx:
             self.save(session, "eod")
         return session, ctx.exception
@@ -493,7 +508,7 @@ class Audit(StateRepo):
     def test_non_memory_change_on_state_branch_is_flagged(self):
         other = self.clone("other")
         git(other, "checkout", "-q", "-b", "s", f"origin/{STATE}")
-        (other / "xahil.py").write_text("sneaky\n")
+        put(other / "xahil.py", "sneaky\n")
         git(other, "commit", "-qam", "code on state")
         git(other, "push", "origin", f"HEAD:refs/heads/{STATE}")
         r = persist.audit(self.b, SETTINGS)
@@ -503,7 +518,7 @@ class Audit(StateRepo):
     def test_probe_file_removal_by_normal_commit_restores_a_clean_audit(self):
         other = self.clone("other")
         git(other, "checkout", "-q", "-b", "s", f"origin/{STATE}")
-        (other / ".xahil-state-branch-test.txt").write_text("probe\n")
+        put(other / ".xahil-state-branch-test.txt", "probe\n")
         git(other, "add", "-A")
         git(other, "commit", "-qm", "probe")
         git(other, "push", "origin", f"HEAD:refs/heads/{STATE}")
@@ -528,6 +543,68 @@ class Audit(StateRepo):
         self.assertIn("history rewritten", " ".join(r["problems"]))
 
 
+class WindowsCheckout(StateRepo):
+    """A checkout made the Git for Windows way (core.autocrlf=true: CRLF on disk, LF in Git)."""
+
+    def setUp(self):
+        super().setUp()
+        self.win = self.clone("win", autocrlf="true")
+
+    def test_checkout_is_clean_and_files_are_crlf_on_disk(self):
+        self.assertEqual(persist.changed_paths(self.win), [])
+        self.assertIn(b"\r\n", (self.win / ".gitattributes").read_bytes())
+
+    def test_sync_claim_and_save_work_and_store_lf(self):
+        self.sync(self.b)
+        self.append(self.b, "memory/RESEARCH-LOG.md", "## from b\n")
+        self.save(self.b)
+        res = self.sync(self.win)
+        self.assertEqual(res["state_commit"], self.remote_sha(STATE))
+        self.assertIn(b"## from b\r\n", (self.win / "memory" / "RESEARCH-LOG.md").read_bytes())
+        self.sync(self.win)  # CRLF on disk is not mistaken for an unsaved change
+        _, claim = self.claim(self.win)
+        self.assertTrue(self.save(self.win, "claim", claim=claim)["verified"])
+        self.append(self.win, "memory/TRADE-LOG.md", "windows line\r\n")
+        self.save(self.win, "eod")
+        stored = self.blob_bytes("memory/TRADE-LOG.md")  # raw bytes, no newline translation
+        self.assertIn("windows line", stored)
+        self.assertNotIn("\r", stored, "Git stores LF; CRLF exists only in the Windows working tree")
+        self.assertTrue(persist.audit(self.win, SETTINGS)["ok"])
+
+    def blob_bytes(self, path):
+        sha = git(self.remote, "rev-parse", f"{STATE}:{path}").strip()
+        raw = subprocess.run([gitexe.executable(), "cat-file", "blob", sha], cwd=self.remote,
+                             capture_output=True, env=gitexe.environment()).stdout
+        return raw.decode("utf-8")
+
+    def test_unsaved_crlf_edit_is_still_detected(self):
+        self.sync(self.win)
+        self.append(self.win, "memory/TRADE-LOG.md", "unsaved\r\n")
+        with self.assertRaises(persist.PersistError) as ctx:
+            self.sync(self.win)
+        self.assertEqual(ctx.exception.kind, persist.UNSAFE)
+
+
+class GitExecutable(StateRepo):
+    def test_git_is_found_even_when_path_is_cleared(self):
+        self.sync(self.a)
+        self.append(self.a, "memory/TRADE-LOG.md", "x\n")
+        with mock.patch.dict("os.environ", {"PATH": str(self.root / "no-git-here")}):
+            self.assertTrue(self.save(self.a)["verified"])
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(persist.memory_sync(self.a, SETTINGS)["state_commit"], self.remote_sha(STATE))
+
+    def test_resolved_path_is_absolute(self):
+        self.assertTrue(Path(gitexe.executable()).is_absolute())
+
+    def test_missing_git_fails_closed_with_a_clear_error(self):
+        with mock.patch.object(gitexe, "_cached", None), mock.patch.object(gitexe.shutil, "which", return_value=None):
+            with self.assertRaises(persist.PersistError) as ctx:
+                persist.memory_sync(self.a, SETTINGS)
+        self.assertEqual(ctx.exception.kind, persist.GIT)
+        self.assertIn("git executable not found", str(ctx.exception))
+
+
 class RunClaimCli(CliHarness):
     """run-claim / persist through the real CLI, against a temporary remote."""
 
@@ -535,7 +612,7 @@ class RunClaimCli(CliHarness):
         super().setUp()
         self.repo = StateRepo("setUp")
         self.repo.setUp()
-        self.addCleanup(shutil.rmtree, self.repo.root, True)
+        self.addCleanup(self.repo.doCleanups)  # the inner fixture's env patch and temp dir
         self.fake = FakeAlpaca()
 
     def use(self, clone):
@@ -584,7 +661,7 @@ class RunClaimCli(CliHarness):
 
     def test_denied_claim_exits_7_alerts_and_does_not_proceed(self):
         self.use(self.repo.a)
-        (self.repo.remote / "DENY_ALL").write_text("")
+        put(self.repo.remote / "DENY_ALL", "")
         code, text = self.run_cli(["run-claim", "--workflow", "market-open"], self.fake)
         self.assertEqual(code, 7, text)
         self.assertEqual(json.loads(text)["kind"], persist.DENIED)
@@ -597,7 +674,7 @@ class RunClaimCli(CliHarness):
         code, _ = self.run_cli(["run-claim", "--workflow", "market-open"], self.fake)
         self.assertEqual(code, 0)
         self.repo.append(session, "memory/TRADE-LOG.md", "result\n")
-        (self.repo.remote / "DENY_REF").write_text(f"refs/heads/{STATE}")
+        put(self.repo.remote / "DENY_REF", f"refs/heads/{STATE}")
         code, text = self.run_cli(["persist", "--message", "market-open 2026-10-28"], self.fake)
         self.assertEqual(code, 7, text)
         out = json.loads(text)
