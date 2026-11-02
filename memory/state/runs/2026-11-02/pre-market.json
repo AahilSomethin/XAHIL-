@@ -2,8 +2,10 @@
   "workflow": "pre-market",
   "date": "2026-11-02",
   "run_id": "5c3b0f46b0bd",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-02T08:41:44-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-02T08:42:41-05:00",
+  "summary": "HOLD; no positions; DVN watch (earnings Thu), OXY/KO skipped insufficient research"
 }
