@@ -78,25 +78,23 @@ Notify command for a CONFIG/SAFETY ERROR:
 
 RUN: python3 -m xahil notify "XAHIL @NAME@ stopped: {{FIRST_ERROR_LINE}}"
 
-PERSISTENCE: this is a fresh clone. File changes vanish unless the FINAL STEP pushes them to main. Never force-push.
+PERSISTENCE: this is a fresh clone of main (code and config only). Shared memory lives on the state branch claude/xahil-state: run-claim loads it and the FINAL STEP saves it there. Never push to main. Never force-push. Never push, pull, fetch, rebase or merge with Git yourself.
 
 STEP 0 - Claim the run, then reconcile (always, in this order).
 
-RUN: git pull --rebase origin main
+RUN: python3 -m xahil run-claim --workflow @TAG@
 
-RUN: python3 -m xahil run-start --workflow @TAG@
+run-claim restores memory from the state branch, checks the market calendar and time window, and pushes this run's claim. The run may continue only after the claim is pushed and verified.
 
-If run-start exits 5 (already done, already running, market closed or outside its time window): STOP NOW. Make no changes and no commit.
-
-RUN: python3 -m xahil persist --message "run-start @TAG@ @TODAY@"
-
-If this persist fails, another run claimed this slot first: STOP NOW, do not retry.
+- Exit 0: claimed and verified. Continue.
+- Exit 5: already done, already running, market closed, outside the time window, or another run claimed this slot first. STOP NOW. Make no changes, no notification.
+- Any other exit code (7 push denied, 8 network failure, 9 Git conflict, 1 error): STOP NOW. The tool has already alerted the owner. Do not retry and do not try git commands to get around it.
 
 RUN: python3 -m xahil preflight
 
 RUN: python3 -m xahil reconcile --workflow @TAG@
 
-Reconcile exit code 2 = HALT: no buys this run. Exits and protective stops are still allowed. Put the halt reasons in the notification. If run-start listed interrupted runs, mention them in the log and notification.
+Reconcile exit code 2 = HALT: no buys this run. Exits and protective stops are still allowed. Put the halt reasons in the notification. If run-claim listed interrupted runs, mention them in the log and notification.
 """
 
 FOOTER = """
@@ -112,7 +110,7 @@ RUN: git checkout -- {{BLOCKED_PATH}}
 
 RUN: python3 -m xahil persist --message "@COMMIT@ @TODAY@"
 
-persist stages memory/ only, rebases on rejection and never force-pushes. If it fails it sends an alert itself; do not try other git commands to get around it.
+persist saves memory/ only, to the state branch, and verifies the push. It merges concurrent log appends itself and never force-pushes or touches main. If it fails it pushes a recovery copy to this session's own branch (never shared memory and never a run claim) and alerts the owner. Do not retry and do not try other git commands to get around it.
 """
 
 BODIES = {

@@ -24,7 +24,7 @@ CMD_RE = re.compile(r"python3 -m xahil ([a-z-]+)([^\n`]*)")
 SLOT_RE = re.compile(r"\{\{([A-Z_]+)\}\}")
 TODAY = "$(TZ=America/New_York date +%Y-%m-%d)"
 GIT_CMD = re.compile(r"(^|\s)git (pull|push|checkout|reset|clean|commit|add|rebase|stash|fetch|merge)\b")
-ALLOWED_GIT = {"git pull --rebase origin main", "git checkout -- {{BLOCKED_PATH}}"}
+ALLOWED_GIT = {"git checkout -- {{BLOCKED_PATH}}"}  # all pushing and fetching goes through the xahil CLI
 
 # Realistic values for every slot, so each command can be parsed by the real argparse parser.
 SAMPLE = {
@@ -254,13 +254,18 @@ class RoutineCommands(unittest.TestCase):
         for name in ROUTINES:
             t = text(name)
             with self.subTest(routine=name):
-                order = [t.index("RUN: git pull --rebase origin main"), t.index("run-start --workflow"),
-                         t.index('persist --message "run-start'), t.index("xahil preflight"),
+                order = [t.index("RUN: python3 -m xahil run-claim --workflow"), t.index("xahil preflight"),
                          t.index("xahil reconcile --workflow")]
                 self.assertEqual(order, sorted(order))
+                self.assertEqual(t.count("run-claim --workflow"), 1)
+                self.assertNotIn("run-start", t, "cloud runs claim through run-claim, never the local run-start")
+                self.assertNotIn("git pull", t)
+                self.assertNotIn("HEAD:main", t)
+                self.assertNotIn("pushes them to main", t)
+                for code in ("Exit 0", "Exit 5", "7 push denied", "8 network failure", "9 Git conflict"):
+                    self.assertIn(code, t)
                 tail = [t.index("run-finish --workflow"), t.rindex("xahil guard"), t.rindex("persist --message")]
                 self.assertEqual(tail, sorted(tail))
-                self.assertIn("exits 5", t)
                 used = [rest for _, rest in CMD_RE.findall(t) if "--notional" in rest]
                 self.assertEqual(used, [], "no command may size by --notional")
                 self.assertNotIn("git push", t)  # pushing only through `xahil persist`
@@ -276,7 +281,8 @@ class RoutineCommands(unittest.TestCase):
                 for must in ("Alpaca PAPER account", "$100,000 of virtual money", "PAPER ONLY", "Never set or change ALPACA_ENDPOINT",
                              "There is NO .env file", "DRY-RUN unless the owner has enabled execution",
                              "WHOLE SHARES only", "Never run ack-halt or reset-baseline", "Never force-push",
-                             "the default is HOLD", "untrusted data"):
+                             "the default is HOLD", "untrusted data", "Never push to main",
+                             "state branch claude/xahil-state", "never a run claim"):
                     self.assertIn(must, t)
 
     def test_workflow_roles(self):
@@ -294,7 +300,7 @@ class RoutineCommands(unittest.TestCase):
         from xahil import runs
         self.assertEqual(tuple(ROUTINES), runs.WORKFLOWS)
         for name in ROUTINES:
-            self.assertIn(f"run-start --workflow {name}", text(name))
+            self.assertIn(f"run-claim --workflow {name}", text(name))
 
 
 class CliRefusesUnfilledArguments(unittest.TestCase):

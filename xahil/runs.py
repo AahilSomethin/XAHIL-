@@ -1,9 +1,10 @@
 """Run markers: duplicate-run prevention, interruption detection and market-calendar windows.
 
 One marker file per (trading date, workflow): memory/state/runs/<date>/<workflow>.json.
-Because each run writes and pushes its own marker FIRST, two concurrent runs
-of the same workflow collide on the same new file in Git; the loser's push
-fails and it stops before doing any work (see xahil.persist).
+In the cloud, `run-claim` writes the marker and pushes it to the shared state branch, and the run
+proceeds only after that push is verified. Two concurrent runs of the same workflow collide on the
+same file; the loser's rebase conflicts on it and it stops (see xahil.persist). `run-start` alone
+only writes the local marker (local, unpushed runs).
 """
 
 from __future__ import annotations
@@ -42,6 +43,21 @@ def window_for(workflow: str, session: Optional[dict]) -> Optional[tuple]:
     }[workflow]
 
 
+def run_key(workflow: str, day: dt.date) -> str:
+    """Trading date, or ISO week for the weekly review (runs once per week whatever day it fires)."""
+    if workflow == "weekly-review":
+        y, w, _ = day.isocalendar()
+        return f"{y}-W{w:02d}"
+    return day.isoformat()
+
+
+def _write_atomic(path: Path, obj: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(obj, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
 def marker_path(date: str, workflow: str, runs_dir: Path = RUNS_DIR) -> Path:
     return runs_dir / date / f"{workflow}.json"
 
@@ -71,11 +87,8 @@ def start(workflow: str, now_et: dt.datetime, session: Optional[dict], runs_dir:
     """Decide whether this run may proceed, and write the 'started' marker if so."""
     if workflow not in WORKFLOWS:
         raise ValueError(f"unknown workflow {workflow!r}")
-    date = now_et.date().isoformat()
+    date = run_key(workflow, now_et.date())
     if workflow == "weekly-review":
-        # Keyed by the ISO week so it runs once per week whatever day the scheduler fires.
-        y, w, _ = now_et.date().isocalendar()
-        date = f"{y}-W{w:02d}"
         if session is not None and now_et.weekday() < 5:
             return {"decision": SKIP_WINDOW, "reason": "weekly review runs when the market is closed (weekend)"}
     else:
@@ -105,10 +118,7 @@ def start(workflow: str, now_et: dt.datetime, session: Optional[dict], runs_dir:
     marker = {"workflow": workflow, "date": date, "run_id": uuid.uuid4().hex[:12], "status": "started",
               "started_at": now_et.isoformat(timespec="seconds"), "attempt": (existing or {}).get("attempt", 0) + 1,
               "recovery_note": note}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    _write_atomic(path, marker)
     return {"decision": PROCEED, "marker": marker, "path": str(path),
             "interrupted_today": interrupted_today(now_et.date().isoformat(), runs_dir, exclude=workflow),
             "recovery_note": note}
@@ -117,17 +127,24 @@ def start(workflow: str, now_et: dt.datetime, session: Optional[dict], runs_dir:
 def finish(workflow: str, now_et: dt.datetime, status: str, summary: str = "", runs_dir: Path = RUNS_DIR) -> dict:
     if status not in ("completed", "failed"):
         raise ValueError("status must be completed or failed")
-    date = now_et.date().isoformat()
+    # A weekly review started late on Sunday may finish after midnight (a new ISO week): also try
+    # yesterday's key. Daily workflows end by 20:00 ET, so they only ever use today's key.
+    days = [now_et.date()]
     if workflow == "weekly-review":
-        y, w, _ = now_et.date().isocalendar()
-        date = f"{y}-W{w:02d}"
-    path = marker_path(date, workflow, runs_dir)
-    marker = read_marker(path)
-    if not marker or marker.get("status") != "started":
-        return {"ok": False, "reason": f"no started marker for {workflow} {date}"}
-    marker.update(status=status, finished_at=now_et.isoformat(timespec="seconds"), summary=summary[:500])
-    path.write_text(json.dumps(marker, indent=2) + "\n", encoding="utf-8")
-    return {"ok": True, "marker": marker}
+        days.append(now_et.date() - dt.timedelta(days=1))
+    keys = []
+    for day in days:
+        k = run_key(workflow, day)
+        if k not in keys:
+            keys.append(k)
+    for date in keys:
+        path = marker_path(date, workflow, runs_dir)
+        marker = read_marker(path)
+        if marker and marker.get("status") == "started":
+            marker.update(status=status, finished_at=now_et.isoformat(timespec="seconds"), summary=summary[:500])
+            _write_atomic(path, marker)
+            return {"ok": True, "marker": marker}
+    return {"ok": False, "reason": f"no started marker for {workflow} {keys[0]}"}
 
 
 def completed_count(workflow: str, runs_dir: Path = RUNS_DIR) -> int:

@@ -1,0 +1,6 @@
+{
+  "remote": "origin",
+  "code_branch": "main",
+  "state_branch": "claude/xahil-state",
+  "_note": "Owner-controlled. Agent runs push memory/ only to state_branch (normal fast-forward pushes, never force) and never push code_branch."
+}

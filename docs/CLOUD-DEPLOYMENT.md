@@ -8,8 +8,9 @@ repo creates, enables or schedules tasks. Order execution stays OFF throughout P
 - [ ] Approve and push the Phase 4 changes, so the cloud clone has the $100,000 baseline and the baseline
       snapshot. GitHub `main` is currently `9a40ec5`, which still expects $1,000.
 - [ ] Confirm the GitHub repo is **private** (Settings → General → Danger Zone shows "Change visibility").
-- [ ] Confirm `main` has **no** branch protection or ruleset that blocks pushes from your own account
-      (Settings → Branches / Rules). The runs push `memory/` commits to `main`.
+- [ ] Confirm the state branch `claude/xahil-state` exists on GitHub (it does since 2026-11-02) and that no
+      ruleset blocks pushes to `claude/*`. Runs push `memory/` commits **only** to `claude/xahil-state`;
+      they never push `main` (the cloud git proxy refuses `main` anyway). You may protect `main` freely.
 
 ## 1. GitHub access for Claude
 - [ ] Connect GitHub at claude.ai/code and grant access to **only** `AahilSomethin/XAHIL-` (least privilege).
@@ -62,7 +63,9 @@ After saving, reopen the task and check that every `RUN:` line and `{{...}}` slo
 | XAHIL weekly-review | `routines/weekly-review.md` | `CRON_TZ=America/New_York 7 10 * * 6` | 10:07 Sat |
 
 For **every** task:
-- [ ] Repository `AahilSomethin/XAHIL-`, branch `main`; environment "XAHIL paper dry-run".
+- [ ] Repository `AahilSomethin/XAHIL-` **selected as the task's repository** (a task without it gets
+      HTTP 403 "not in this session's authorized repository set" on every push), branch `main`;
+      environment "XAHIL paper dry-run".
 - [ ] **Connectors: remove ALL of them.** New tasks include every connector on your account by default.
       Some of your connectors can place trades or enable trading outside XAHIL's risk engine. XAHIL needs
       no connectors: it reaches Alpaca, Tavily and Telegram only through `python3 -m xahil`.
@@ -71,11 +74,21 @@ For **every** task:
 
 ## 4. Smoke test (one run, by hand)
 Use **Run now** on *XAHIL pre-market* on a trading day between **06:00 and 09:25 ET**. Outside that
-window `run-start` stops on purpose (exit 5) and commits nothing. Then check:
+window `run-claim` stops on purpose (exit 5) and commits nothing. Then check:
 - [ ] The run's transcript shows `preflight` with `paper_endpoint` paper, `auth_mode: proxy`, equity 100000, `execution_mode: dry-run`, Tavily `available`.
-- [ ] A commit `run-start pre-market <date>` and a commit `pre-market research <date>` appear on GitHub `main`, touching only `memory/`.
+- [ ] The transcript shows `run-claim` with `"claim_verified": true`.
+- [ ] A commit `run-claim pre-market <date> <run id>` and a commit `pre-market research <date>` appear on GitHub
+      branch `claude/xahil-state`, touching only `memory/`. `main` is unchanged.
+- [ ] Locally: `python -m xahil state-audit` reports `"ok": true`.
 - [ ] `memory/RESEARCH-LOG.md` has a `## <date>` entry with evidence ids, and `memory/state/research_usage.jsonl` grew by at most 8 credits.
-- [ ] `git pull` locally, then `python -m xahil orders all` shows **no orders** at Alpaca.
+- [ ] `python -m xahil orders all` shows **no orders** at Alpaca.
+
+## 4a. If a run alerts "persist failed" or "run-claim failed"
+- **7 (denied):** the task lost repository access or the branch rule changed. Check the task's repository
+  selection. Nothing was claimed; the slot can run again once fixed.
+- **8 (network) / 9 (conflict) / 1:** the run stopped. If the alert names a recovery branch, run
+  `python -m xahil state-recover --branch <that branch>` locally, check `state-audit`, then delete the branch
+  on GitHub. The run's marker stays `started` on the state branch, so the same slot is not re-run by accident.
 
 ## 5. Enabling the schedules (your decision)
 Only after the smoke test passes: enable the five schedules. Execution stays dry-run, because

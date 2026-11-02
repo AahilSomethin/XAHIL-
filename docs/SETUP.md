@@ -69,8 +69,8 @@ Follow `routines/README.md`:
       secret (or paper-key variables), Telegram variables, `XAHIL_CLOUD=1`.
 - [ ] Create the five tasks with the exact `CRON_TZ=America/New_York ...` crons.
 - [ ] Click **Run now** on pre-market once, between 06:00 and 09:25 ET on a trading day, and
-      confirm a commit lands in `memory/`. Outside that window `run-start` stops the run on
-      purpose (exit 5), and nothing is committed.
+      confirm a commit lands in `memory/` on branch `claude/xahil-state` (never `main`). Outside that
+      window `run-claim` stops the run on purpose (exit 5), and nothing is committed.
 - [ ] Watch claude.ai/settings/usage for the first week.
 
 ## 6b. Dry-run track record and activation check

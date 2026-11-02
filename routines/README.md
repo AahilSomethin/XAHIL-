@@ -21,15 +21,20 @@ unfilled `{{...}}` slots. After saving a task, open it again and check that the 
 | Layer | Responsibility |
 |---|---|
 | **Claude (the agent)** | Reads memory, does research, judges catalysts and thesis breaks, writes the logs, records decisions and evidence, writes the weekly review and strategy *proposals* |
-| **`python3 -m xahil` (deterministic)** | Paper-only broker access, risk engine, protective-order selection, reconciliation, indicators, signals, regime, backtests, metrics, learning statistics, run locks, Git persistence, Telegram |
+| **`python3 -m xahil` (deterministic)** | Paper-only broker access, risk engine, protective-order selection, reconciliation, indicators, signals, regime, backtests, metrics, learning statistics, run claims, state-branch persistence, Telegram |
 
 ## Run flow (every workflow)
-1. `git pull --rebase` → `run-start` (exit 5 = already done, already running, holiday or outside its window → stop) → `persist` the run marker (if the push collides with another run of the same workflow, stop).
+1. `run-claim`: restores `memory/` from the state branch, checks the calendar window and duplicates, then
+   pushes this run's claim marker to the state branch and verifies it. Exit 0 = claimed; 5 = skip
+   (done, running, closed, outside window, or another run won the race); 7 denied, 8 network, 9 conflict,
+   1 error = stop (the tool alerts). Nothing else runs until the claim is verified on GitHub.
 2. `preflight` → `reconcile` (Alpaca is the source of truth; detects resets, unexplained changes, unprotected positions).
 3. Workflow steps.
-4. `run-finish` → `guard` → `persist` (memory/ only, rebase on rejection, never force).
+4. `run-finish` → `guard` → `persist` (memory/ only, to the state branch, rebase on rejection, never force,
+   never main). If the save fails, a recovery copy goes to the session's own `claude/*` branch and the owner
+   is alerted; that copy is never read as shared memory or as a claim.
 
-| Task | Cron (paste exactly) | ET | Allowed window (enforced by `run-start`) | Main job |
+| Task | Cron (paste exactly) | ET | Allowed window (enforced by `run-claim`) | Main job |
 |---|---|---|---|---|
 | pre-market | `CRON_TZ=America/New_York 7 8 * * 1-5` | 08:07 | 06:00 to open−5 min | regime, signals, cited research, ideas, decisions |
 | market-open | `CRON_TZ=America/New_York 47 9 * * 1-5` | 09:47 | open+10 to open+90 min | GTC protection first, then whole-share buys |
@@ -67,11 +72,23 @@ half-days come from Alpaca's calendar.
 
 Step-by-step owner checklist: [docs/CLOUD-DEPLOYMENT.md](../docs/CLOUD-DEPLOYMENT.md).
 
-## Repository and pushes
-Select this repo, branch `main`. `persist` pushes `memory/` commits with `HEAD:main`, so `main`
-must accept pushes from your GitHub identity. `.gitattributes` merges append-only logs with
-Git's union driver; any other conflict (snapshot, halts, run markers) stops the run rather than
-guessing. Review bot commits with `git log -p -- memory/`.
+## Repository and pushes (branch model)
+| Branch | Holds | Who writes it |
+|---|---|---|
+| `main` | code, config, prompts, the rulebook | only you (Windows). Cloud runs never push it (the cloud proxy also refuses). |
+| `claude/xahil-state` | the shared `memory/` (logs, snapshot, halts, run markers) | agent runs, normal fast-forward pushes only, `memory/` only |
+| the session's own `claude/*` branch | a recovery copy after a failed final save | the failing run; you merge it with `state-recover` |
+
+Select this repo, branch `main`, in every task. Cloud sessions may push `claude/*` branches but not
+`main`, and cannot delete branches. `.gitattributes` merges append-only logs with Git's union driver;
+any other conflict (snapshot, halts, run markers) stops the run rather than guessing. Settings live in
+`config/persistence.json` (owner-controlled).
+
+Owner commands (Windows):
+- See the agent's memory: `git fetch origin claude/xahil-state` then `git log -p origin/claude/xahil-state -- memory/`.
+- Check integrity: `python -m xahil state-audit` (only `memory/` differs from main, history never rewritten).
+- Merge a recovery copy after an alert: `python -m xahil state-recover --branch claude/...` (asks you to type RECOVER).
+- Delete leftover recovery branches yourself on GitHub; the cloud cannot delete branches.
 
 ## Activation (later, only with your explicit approval)
 1. `python -m xahil activation-check` reports the blocking preconditions: paper account, equity within

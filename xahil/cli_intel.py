@@ -1,7 +1,8 @@
 """Trading-intelligence and run-control commands (registered into `python -m xahil`).
 
 Analysis: regime, signals, backtest, size. Memory: decide, evidence, mistake, learn.
-Run control: run-start, run-finish, persist, activation-check. None of these place orders.
+Run control: run-claim, memory-sync, run-start, run-finish, persist, state-audit, state-recover,
+activation-check. None of these place orders.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from pathlib import Path
 
 from xahil import backtest as bt
 from xahil import cli, data, journal, learning, metrics, persist, regime, runs, signals
-from xahil.config import CONFIG_DIR, MEMORY_DIR, STATE_DIR, _read_json, load_risk_limits
+from xahil.config import CONFIG_DIR, MEMORY_DIR, ROOT, STATE_DIR, _read_json, is_cloud_run, load_risk_limits
 from xahil.risk import _f, overnight_protection_gaps, parse_ts
 from xahil.ta import Indicators
 
@@ -214,11 +215,64 @@ def _session(c, date: str):
     return cal[0] if cal and cal[0].get("date") == date else None
 
 
+REPO = ROOT  # the Git checkout persistence works on (tests point this at a temporary repo)
+
+
+def _persist_failure(exc: persist.PersistError, what: str, extra: dict = None) -> int:
+    """Report a typed persistence failure. Every kind except a lost claim also alerts the owner."""
+    report = {"ok": False, "step": what, "kind": exc.kind, "error": str(exc), **(extra or {})}
+    if exc.kind == persist.CLAIM_LOST:
+        report["decision"] = "skip_claim_lost"
+    else:
+        note = (extra or {}).get("recovery") or {}
+        where = f" Recovery copy on {note['branch']} ({note['commit'][:12]})." if note.get("recovery_pushed") else ""
+        cli.alert(f"{what} failed ({exc.kind}): {str(exc)[:250]}.{where} Run stopped; nothing was retried.")
+    cli.out(report)
+    return exc.exit_code()
+
+
+def cmd_memory_sync(args, client_factory) -> int:
+    try:
+        res = persist.memory_sync(REPO)
+    except persist.PersistError as exc:
+        return _persist_failure(exc, "memory-sync")
+    cli.out(res)
+    return cli.EXIT_OK
+
+
+def cmd_run_claim(args, client_factory) -> int:
+    """memory-sync, then the run-start decision, then push the claim marker. PROCEED only once verified."""
+    try:
+        sync = persist.memory_sync(REPO)
+    except persist.PersistError as exc:
+        return _persist_failure(exc, "run-claim (memory-sync)")
+    c = client_factory()
+    now = _now_et(c)
+    res = runs.start(args.workflow, now, _session(c, now.date().isoformat()), runs_dir=runs.RUNS_DIR,
+                     force_recover=args.force_recover)
+    res["state_commit"] = sync["state_commit"]
+    if res["decision"] != runs.PROCEED:
+        cli.out(res)
+        return 5
+    marker = res["marker"]
+    rel = Path(res["path"]).resolve().relative_to(Path(REPO).resolve()).as_posix()
+    try:
+        pushed = persist.persist(f"run-claim {args.workflow} {marker['date']} {marker['run_id']}", repo=REPO,
+                                 claim={"path": rel, "run_id": marker["run_id"]})
+    except persist.PersistError as exc:
+        persist.restore_path(REPO, rel)  # an unverified claim must not stay behind locally
+        return _persist_failure(exc, "run-claim", {"workflow": args.workflow, "run_id": marker["run_id"]})
+    res.update(claim_commit=pushed["commit"], claim_verified=True)
+    cli.out(res)
+    return cli.EXIT_OK
+
+
 def cmd_run_start(args, client_factory) -> int:
     c = client_factory()
     now = _now_et(c)
     res = runs.start(args.workflow, now, _session(c, now.date().isoformat()), runs_dir=runs.RUNS_DIR,
                      force_recover=args.force_recover)
+    res["note"] = "local marker only (not pushed); cloud runs use run-claim"
     cli.out(res)
     return cli.EXIT_OK if res["decision"] == runs.PROCEED else 5
 
@@ -232,12 +286,41 @@ def cmd_run_finish(args, client_factory) -> int:
 
 def cmd_persist(args, client_factory) -> int:
     try:
-        res = persist.persist(args.message, dry_run=args.dry_run)
+        res = persist.persist(args.message, repo=REPO, dry_run=args.dry_run)
     except persist.PersistError as exc:
-        cli.out({"persisted": False, "error": str(exc)})
-        cli.alert(f"memory not persisted: {str(exc)[:300]}")
-        return cli.EXIT_ERROR
+        recovery = None
+        if exc.kind != persist.UNSAFE and not args.dry_run:
+            try:
+                recovery = persist.save_recovery(REPO, args.message, exc)
+            except persist.PersistError as rexc:
+                recovery = {"recovery_pushed": False, "reason": f"{rexc.kind}: {str(rexc)[:200]}"}
+        return _persist_failure(exc, "persist", {"persisted": False, "recovery": recovery})
     cli.out(res)
+    return cli.EXIT_OK
+
+
+def cmd_state_audit(args, client_factory) -> int:
+    try:
+        res = persist.audit(REPO)
+    except persist.PersistError as exc:
+        cli.out({"ok": False, "kind": exc.kind, "error": str(exc)})
+        return exc.exit_code()
+    cli.out(res)
+    return cli.EXIT_OK if res["ok"] else cli.EXIT_ERROR
+
+
+def cmd_state_recover(args, client_factory) -> int:
+    """Owner only: merge a recovery copy from a session branch into the state branch."""
+    if is_cloud_run() or not cli.manual_confirmation(
+            f"Merge the recovery copy on {args.branch} into the state branch? Type RECOVER: ", "RECOVER"):
+        cli.out({"recovered": False, "note": "not confirmed (owner only, local interactive terminal, never the cloud)"})
+        return cli.EXIT_REJECTED
+    try:
+        res = persist.recover(REPO, args.branch)
+    except persist.PersistError as exc:
+        cli.out({"recovered": False, "kind": exc.kind, "error": str(exc)})
+        return exc.exit_code()
+    cli.out({"recovered": True, **res})
     return cli.EXIT_OK
 
 
@@ -333,16 +416,23 @@ def add_parsers(sub) -> None:
     m.add_argument("--symbol", type=cli.filled)
     lr = sub.add_parser("learn", help="weekly learning analysis (signal efficacy, outcomes, mistakes)")
     lr.add_argument("--week-ending")
-    rs = sub.add_parser("run-start", help="claim this workflow's run (duplicate-run + calendar window check)")
+    sub.add_parser("memory-sync", help="restore memory/ from the shared state branch (refuses to overwrite unsaved changes)")
+    rc = sub.add_parser("run-claim", help="memory-sync + window/duplicate check + push the run claim to the state branch")
+    rc.add_argument("--workflow", required=True, choices=runs.WORKFLOWS)
+    rc.add_argument("--force-recover", action="store_true", help="take over a recent unfinished run")
+    rs = sub.add_parser("run-start", help="LOCAL ONLY: window/duplicate check + local marker (not pushed)")
     rs.add_argument("--workflow", required=True, choices=runs.WORKFLOWS)
     rs.add_argument("--force-recover", action="store_true", help="take over a recent unfinished run")
     rf = sub.add_parser("run-finish")
     rf.add_argument("--workflow", required=True, choices=runs.WORKFLOWS)
     rf.add_argument("--status", required=True, choices=["completed", "failed"])
     rf.add_argument("--summary", type=cli.filled)
-    p = sub.add_parser("persist", help="guard + commit memory/ + push with rebase retry (never force)")
+    p = sub.add_parser("persist", help="save memory/ to the state branch (rebase on rejection, never force, never main)")
     p.add_argument("--message", required=True, type=cli.filled)
     p.add_argument("--dry-run", action="store_true")
+    sub.add_parser("state-audit", help="read-only: state branch changes only memory/ and was never rewritten")
+    sr = sub.add_parser("state-recover", help="OWNER ONLY (local terminal): merge a recovery copy into the state branch")
+    sr.add_argument("--branch", required=True, type=cli.filled)
     sub.add_parser("activation-check", help="preconditions for the owner's execution decision (read-only)")
 
 
@@ -350,6 +440,8 @@ HANDLERS = {
     "regime": cmd_regime, "signals": cmd_signals, "backtest": cmd_backtest, "size": cmd_size,
     "decide": cmd_decide, "evidence": cmd_evidence, "research-check": cmd_research_check,
     "mistake": cmd_mistake, "learn": cmd_learn,
+    "memory-sync": cmd_memory_sync, "run-claim": cmd_run_claim,
     "run-start": cmd_run_start, "run-finish": cmd_run_finish, "persist": cmd_persist,
+    "state-audit": cmd_state_audit, "state-recover": cmd_state_recover,
     "activation-check": cmd_activation_check,
 }

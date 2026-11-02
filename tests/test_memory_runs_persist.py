@@ -3,8 +3,6 @@ the activation check, and the intelligence CLI commands. Git tests use temporary
 
 import datetime as dt
 import json
-import shutil
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,7 +11,7 @@ from unittest import mock
 from tests.helpers import FakeAlpaca, account, limits, position, quote
 from tests.test_analysis import SIG, make_bars, trading_days, uptrend
 from tests.test_cli_execution import CliHarness
-from xahil import cli, cli_intel, data, journal, learning, persist, runs
+from xahil import cli, cli_intel, data, journal, learning, runs
 
 ET = dt.timezone(dt.timedelta(hours=-4))
 SESSION = {"date": "2026-10-28", "open": "09:30", "close": "16:00"}
@@ -143,80 +141,27 @@ class Runs(unittest.TestCase):
     def test_finish_without_start(self):
         self.assertFalse(runs.finish("midday", at(12, 30), "completed", runs_dir=self.dir)["ok"])
 
+    def test_weekly_review_started_sunday_night_finishes_after_midnight(self):
+        sun = dt.datetime(2026, 11, 1, 23, 50, tzinfo=ET)  # ISO week 44
+        self.assertEqual(runs.start("weekly-review", sun, None, self.dir)["marker"]["date"], "2026-W44")
+        r = runs.finish("weekly-review", sun + dt.timedelta(minutes=20), "completed", runs_dir=self.dir)  # W45
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(r["marker"]["date"], "2026-W44")
 
-# --- git persistence (temporary repos only) -------------------------------------
+    def test_daily_finish_never_completes_yesterdays_marker(self):
+        runs.start("midday", at(12, 7, 27), {**SESSION, "date": "2026-10-27"}, self.dir)  # interrupted yesterday
+        self.assertFalse(runs.finish("midday", at(12, 30), "completed", runs_dir=self.dir)["ok"])
+        self.assertEqual(runs.read_marker(runs.marker_path("2026-10-27", "midday", self.dir))["status"], "started")
 
-def git(cwd, *args):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
+    def test_markers_are_written_atomically(self):
+        runs.start("midday", at(12, 7), SESSION, self.dir)
+        runs.finish("midday", at(12, 30), "completed", runs_dir=self.dir)
+        self.assertEqual(list(self.dir.rglob("*.tmp")), [])
 
 
-class Persistence(unittest.TestCase):
-    def setUp(self):
-        self.root = Path(tempfile.mkdtemp())
-        self.remote = self.root / "remote.git"
-        git(self.root, "init", "--bare", "-b", "main", str(self.remote))
-        seed = self.root / "seed"
-        git(self.root, "clone", "-c", "core.autocrlf=false", str(self.remote), str(seed))
-        self._identity(seed)
-        (seed / "memory" / "state").mkdir(parents=True)
-        (seed / "memory" / "state" / "decisions.jsonl").write_text('{"id": "seed"}\n')
-        shutil.copy(Path(__file__).resolve().parent.parent / ".gitattributes", seed / ".gitattributes")
-        git(seed, "add", ".")
-        git(seed, "commit", "-m", "seed")
-        git(seed, "push", "origin", "HEAD:main")
-        self.a, self.b = self.root / "a", self.root / "b"
-        for d in (self.a, self.b):
-            git(self.root, "clone", "-c", "core.autocrlf=false", str(self.remote), str(d))
-            self._identity(d)
-
-    @staticmethod
-    def _identity(repo):
-        git(repo, "config", "user.email", "test@example.com")
-        git(repo, "config", "user.name", "test")
-        git(repo, "config", "core.autocrlf", "false")
-
-    def test_commit_and_push_memory(self):
-        (self.a / "memory" / "TRADE-LOG.md").write_text("x\n")
-        r = persist.persist("eod 2026-10-28", repo=self.a)
-        self.assertTrue(r["pushed"])
-        self.assertIn("memory/TRADE-LOG.md", git(self.remote, "log", "--name-only", "-1", "main"))
-
-    def test_nothing_to_commit(self):
-        self.assertFalse(persist.persist("noop", repo=self.a)["committed"])
-
-    def test_guard_blocks_code_changes(self):
-        (self.a / "xahil.py").write_text("evil\n")
-        with self.assertRaises(persist.PersistError):
-            persist.persist("x", repo=self.a)
-
-    def test_concurrent_appends_merge_via_union(self):
-        for repo, line in ((self.a, '{"id": "a"}\n'), (self.b, '{"id": "b"}\n')):
-            with (repo / "memory" / "state" / "decisions.jsonl").open("a") as fh:
-                fh.write(line)
-        persist.persist("run a", repo=self.a)
-        r = persist.persist("run b", repo=self.b)  # rejected, rebased with union merge, pushed
-        self.assertTrue(r["pushed"])
-        git(self.a, "pull", "--rebase", "origin", "main")
-        content = (self.a / "memory" / "state" / "decisions.jsonl").read_text()
-        for x in ('"seed"', '"a"', '"b"'):
-            self.assertIn(x, content)
-
-    def test_duplicate_run_marker_conflict_stops_second_run(self):
-        for repo, rid in ((self.a, "aaa"), (self.b, "bbb")):
-            p = repo / "memory" / "state" / "runs" / "2026-10-28" / "midday.json"
-            p.parent.mkdir(parents=True)
-            p.write_text(json.dumps({"run_id": rid, "status": "started"}) + "\n")
-        persist.persist("run-start midday (a)", repo=self.a)
-        with self.assertRaises(persist.PersistError) as ctx:
-            persist.persist("run-start midday (b)", repo=self.b)
-        self.assertIn("concurrent run", str(ctx.exception))
-        self.assertEqual(git(self.b, "status", "--porcelain").count("UU"), 0)  # rebase aborted cleanly
-        self.assertIn("aaa", git(self.remote, "show", "main:memory/state/runs/2026-10-28/midday.json"))
-
-    def test_never_force_pushes(self):
-        src = Path(persist.__file__).read_text()
-        self.assertNotIn("--force", src)
-        self.assertNotIn("-f\"", src)
+# --- git persistence ------------------------------------------------------------
+# Shared state-branch persistence (memory-sync, run claims, failures, recovery, audit) is tested
+# offline in tests/test_state_persistence.py.
 
 
 # --- activation check -------------------------------------------------------------

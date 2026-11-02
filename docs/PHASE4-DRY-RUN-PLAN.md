@@ -19,7 +19,7 @@ the shift.
 
 ## Your 5-minute daily check
 1. Read the Telegram EOD message (it should arrive by about 16:40 ET).
-2. `git pull`, then `git log --oneline -12 -- memory/` to confirm 4 runs, each with a run-start commit and a result commit.
+2. `git fetch origin claude/xahil-state`, then `git log --oneline -12 origin/claude/xahil-state -- memory/` to confirm 4 runs, each with a run-claim commit and a result commit; `python -m xahil state-audit` is ok.
 3. `python -m xahil orders all` should return `[]`. Any order at all = **abort** (see below).
 4. `python -m xahil preflight` shows Tavily credits for the day (≤ 40) and no persistent halts.
 5. Glance at claude.ai/settings/usage (Pro allowance).
@@ -27,7 +27,7 @@ the shift.
 ## Day-by-day focus
 | Day | Extra thing to verify |
 |---|---|
-| Day 1 (Mon) | All 4 runs fired inside their windows; run-start markers in `memory/state/runs/<date>/`; quote freshness and spread look sane in the market-open `check-buy` output (first real in-session IEX data) |
+| Day 1 (Mon) | All 4 runs fired inside their windows; run-claim markers in `memory/state/runs/<date>/` on `claude/xahil-state`; quote freshness and spread look sane in the market-open `check-buy` output (first real in-session IEX data) |
 | Day 2 (Tue) | Pre-market reuses memory from Day 1; no duplicate runs; evidence has publication dates |
 | Day 3 (Wed) | Read one full research entry: are claims cited by evidence id? Is "insufficient research → HOLD" respected? |
 | Day 4 (Thu) | `python -m xahil learn` locally (read-only) shows signals accumulating |

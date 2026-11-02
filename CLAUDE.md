@@ -35,9 +35,12 @@ Never curl Alpaca, Telegram or Perplexity directly.
 | `size SYM` | max whole shares within the 5% cap |
 | `backtest [--save]` | historical backtest with out-of-sample split (research only) |
 | `decide`, `evidence`, `mistake`, `learn` | Git-backed decision/evidence/mistake logs; weekly learning analysis |
-| `run-start`, `run-finish`, `persist` | run claim (duplicates, holidays, time windows), safe commit + push of memory/ |
+| `run-claim` | cloud: sync memory/ from claude/xahil-state, window/duplicate check, push + verify the claim (exit 5 skip; 7 denied, 8 network, 9 conflict = stop) |
+| `memory-sync`, `run-finish`, `persist` | restore memory/ from the state branch; finish the marker; save memory/ to claude/xahil-state (never main, never force; recovery copy on failure) |
+| `run-start` | local only: window/duplicate check, local marker (not pushed) |
+| `state-audit` | read-only: state branch changes only memory/, history never rewritten |
 | `activation-check` | read-only preconditions for the owner's execution decision |
-| `ack-halt`, `reset-baseline` | **human only** (local interactive terminal); never run these |
+| `ack-halt`, `reset-baseline`, `state-recover` | **human only** (local interactive terminal); never run these |
 
 Sell purposes: stops are protective (always allowed); `sell --risk-exit` only at or below the
 -7% cut (engine verifies); other sells are discretionary and refused for shares bought today.

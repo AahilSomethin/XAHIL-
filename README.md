@@ -13,11 +13,11 @@ run safety.
 ## How a run works
 ```
 scheduled task (CRON_TZ=America/New_York)
-  └─ run-start (holiday? time window? already done/running?) → persist run marker (Git lock)
+  └─ run-claim: sync memory from claude/xahil-state → holiday/window/duplicate check → push + verify claim
   └─ preflight → reconcile (Alpaca = truth; resets, gaps, unresolved orders)
   └─ Claude: research (+evidence), regime & signals (advisory), decisions, logs
   └─ python3 -m xahil buy/sell/protect → risk engine → re-check → dry-run proposal (or order, once approved)
-  └─ run-finish → guard → persist (memory/ only, rebase, never force) → Telegram
+  └─ run-finish → guard → persist (memory/ only, to claude/xahil-state, never main, never force) → Telegram
 ```
 
 | Workflow | ET | Does |
