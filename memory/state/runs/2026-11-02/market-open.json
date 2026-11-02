@@ -1,0 +1,9 @@
+{
+  "workflow": "market-open",
+  "date": "2026-11-02",
+  "run_id": "7d3757fbd3bd",
+  "status": "started",
+  "started_at": "2026-11-02T09:51:36-05:00",
+  "attempt": 1,
+  "recovery_note": null
+}
