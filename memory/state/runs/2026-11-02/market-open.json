@@ -2,8 +2,10 @@
   "workflow": "market-open",
   "date": "2026-11-02",
   "run_id": "7d3757fbd3bd",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-02T09:51:36-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-02T09:51:53-05:00",
+  "summary": "HOLD per pre-market; no positions, no orders"
 }
