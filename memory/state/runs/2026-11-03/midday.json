@@ -2,8 +2,10 @@
   "workflow": "midday",
   "date": "2026-11-03",
   "run_id": "74e48a5b8cab",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-03T12:08:32-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-03T12:08:53-05:00",
+  "summary": "no positions, no scan actions, HOLD"
 }
