@@ -63,3 +63,35 @@ TRADE or HOLD (default HOLD)
 
 ### Decision
 HOLD
+
+## 2026-11-03 - Pre-market Research
+
+### Account
+- Equity $100,000 / cash $100,000 / long exposure $0 / no positions / 0 buys this week. Reconcile OK, no halts. Dry-run mode.
+
+### Market Context
+- Regime: neutral (SPY above SMA200, SMA50 > SMA200, mixed trend; 20d vol 11.4%).
+- S&P 500 futures / SPY: Mon close S&P ~7,629 (+0.65%) as WTI fell ~6% [e-2026-11-03-1]; futures mixed/slightly lower Tue ahead of midterm results; chipmaker sell-off, Apple/Palantir (-8.9% pre-mkt) slide [e-2026-11-03-4, -9].
+- VIX: ~19-21 (prior close 21.15; VIX1D 19.3, VVIX 106) [e-2026-11-03-2, -3].
+- Rates, oil, dollar: oil volatile on Iran war diplomacy headlines [e-2026-11-03-5].
+- Today's catalysts and economic calendar: US midterms; JOLTS + factory orders 10:00 ET; NFP Fri [e-2026-11-03-6, -7].
+- Earnings: PFE, SHOP before open; AMD, ANET, AMGN, BKNG after close [e-2026-11-03-6, -7].
+- Sector momentum: AI/tech wobble after October slump; defensives/energy relatively steadier [e-2026-11-03-8].
+- Research source: Tavily
+
+### Held Positions
+- None.
+
+### Signals considered
+- Qualified: GM, KMI, KO, MO, OXY, PFE, WFC, XLF, XLP. Researched PFE, KMI, WFC (5/8 credits used).
+- KMI, WFC: insufficient (single-domain, undated junk) -> skip.
+- PFE: sufficient, but reports Q3 earnings before today's open (binary gap risk; stops can gap) [e-2026-11-03-11..18] -> watch, revisit after the print.
+
+### Trade Ideas
+- None. No dated catalyst justifies entry into a binary earnings event, plus midterms day.
+
+### Risk Factors
+- Midterms, JOLTS, AMD earnings AMC, NFP Fri, AI-stock weakness, oil/Iran headline risk.
+
+### Decision
+HOLD

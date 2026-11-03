@@ -2,8 +2,10 @@
   "workflow": "pre-market",
   "date": "2026-11-03",
   "run_id": "6b9326a1b346",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-03T08:09:15-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-03T08:10:15-05:00",
+  "summary": "HOLD; no positions; PFE watch (earnings BMO), KMI/WFC skipped insufficient research"
 }
