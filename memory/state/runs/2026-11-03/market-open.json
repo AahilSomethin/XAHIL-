@@ -2,8 +2,10 @@
   "workflow": "market-open",
   "date": "2026-11-03",
   "run_id": "06014c08a2c9",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-03T09:48:02-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-03T09:48:20-05:00",
+  "summary": "No TRADE decisions (PFE watch, KMI/WFC skip); no positions; no orders"
 }
