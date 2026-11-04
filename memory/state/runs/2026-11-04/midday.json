@@ -1,0 +1,9 @@
+{
+  "workflow": "midday",
+  "date": "2026-11-04",
+  "run_id": "cb01c2053b04",
+  "status": "started",
+  "started_at": "2026-11-04T12:08:01-05:00",
+  "attempt": 1,
+  "recovery_note": null
+}
