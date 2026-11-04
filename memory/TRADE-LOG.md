@@ -33,3 +33,8 @@ No positions yet. Order execution is disabled (dry-run) until the owner approves
 | (no positions) | | | | | | |
 
 **Notes:** No trades or proposals today (HOLD: PFE sufficient but binary earnings gap risk on midterms day; KMI/WFC insufficient research). No positions, so no stops needed and nothing overnight-unprotected (reconcile clean, no halts). Execution is still in dry-run. Tomorrow: review post-earnings reaction (PFE, AMD) and midterm results; act only on a dated catalyst with sufficient evidence, default HOLD.
+
+### 2026-11-04 09:50 ET - BUY PFE (REJECTED - agent skip, not risk engine)
+- Size: 0 (160 sh max) | Ref price: $30.54 ask | Stop: n/a | Target: $34.18 | R:R ~1.2:1
+- Thesis / reason: Q3 beat + raised guidance (Nov 3) [e-2026-11-04-16, -19, -20]; gapped +1.9% above $29.98 ref, R:R fell from 2:1 to ~1.2:1. HOLD.
+- Risk engine: check-buy APPROVED (not submitted)

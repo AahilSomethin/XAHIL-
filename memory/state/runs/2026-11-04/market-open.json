@@ -2,8 +2,10 @@
   "workflow": "market-open",
   "date": "2026-11-04",
   "run_id": "2a81486a7071",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-04T09:48:02-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-04T09:48:22-05:00",
+  "summary": "No buys; PFE skipped on gap-up R:R; no positions, reconcile clean"
 }
