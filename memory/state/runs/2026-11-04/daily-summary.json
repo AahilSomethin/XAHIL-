@@ -1,0 +1,9 @@
+{
+  "workflow": "daily-summary",
+  "date": "2026-11-04",
+  "run_id": "992f34191048",
+  "status": "started",
+  "started_at": "2026-11-04T16:22:49-05:00",
+  "attempt": 1,
+  "recovery_note": null
+}
