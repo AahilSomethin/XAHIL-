@@ -1,10 +1,10 @@
 {
   "account_fingerprint": "PA-0b01e38f3a52",
-  "as_of": "2026-11-04T09:48:09.108232364-05:00",
+  "as_of": "2026-11-04T12:08:07.770964588-05:00",
   "cash": 100000.0,
   "equity": 100000.0,
   "long_value": 0,
   "open_orders": {},
   "positions": {},
-  "workflow": "market-open"
+  "workflow": "midday"
 }
