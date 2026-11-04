@@ -95,3 +95,36 @@ HOLD
 
 ### Decision
 HOLD
+
+## 2026-11-04 - Pre-market Research
+
+### Account
+- Equity $100,000 / cash $100,000 / long exposure $0 / no positions / 0 buys this week. Reconcile OK, no halts. Dry-run mode.
+
+### Market Context
+- Regime: neutral (SPY above SMA200, SMA50 > SMA200, mixed trend; 20d vol 11.2%).
+- S&P 500 futures / SPY: midterm results drove a volatile overnight; futures initially -1% to -2.5%, then recovered to ~+1.1% (S&P) by 06:02 ET [e-2026-11-04-2, -3]; sources conflict (some show -0.3%, Benzinga "lower open") [e-2026-11-04-3, -10].
+- VIX: ~21 (Mon/Tue) [e-2026-11-04-1].
+- Rates, oil, dollar: 10y 4.95%, 2y 4.62% Tue; yields and dollar slipped overnight, gold +2.9% [e-2026-11-04-9, -10]. Oil elevated on Iran strikes [e-2026-11-04-1].
+- Today's catalysts and economic calendar: midterm results; ADP 8:15, MBA 7:00 [e-2026-11-04-7]; NFP Fri.
+- Earnings before the open: AMD jumped after results, easing AI worries; Arrow Thu BMO [e-2026-11-04-2, -3, -6].
+- Sector momentum: AI infrastructure weak, AMD strength; defensives steadier.
+- Research source: Tavily
+
+### Held Positions
+- None.
+
+### Signals considered
+- Qualified: GM, KDP, KMI, KO, MO, OXY, PFE, SCHD, XLB, XLF. Researched PFE, KO, XLF (7/8 credits used incl. market).
+- XLF: insufficient (2 undated sources) -> skip.
+- KO: sufficient, but Q3 earnings were Oct 28; only analyst-note chatter, no new dated catalyst -> watch.
+- PFE: sufficient. Q3 reported Nov 3 BMO: beat, raised FY guidance [e-2026-11-04-16, -19, -20]; new CFO named [e-2026-11-04-15]. Binary earnings event now behind it.
+
+### Trade Ideas
+1. PFE - catalyst: Q3 beat + raised guidance (Nov 3) [e-2026-11-04-16, -19, -20], entry ~$29.98 (signal ref), stop $27.88 (-7%), target $34.18, R:R 2:1, size 166 sh (~$4,977, <=5%). Size/check-buy cannot price pre-open (no quote); re-check at market-open; skip if gap-up exceeds ref materially or midterm volatility spikes.
+
+### Risk Factors
+- Midterm results volatility, ADP today, NFP Fri, AI-stock weakness, oil/Iran headlines, conflicting futures readings.
+
+### Decision
+HOLD at pre-market; PFE is a candidate for market-open re-check only.
