@@ -269,6 +269,18 @@ class Sufficiency(unittest.TestCase):
                     self.assertIn("never as a bullish signal", r["interpretation"])
 
 
+    def test_seven_day_freshness_boundary(self):
+        """The rule as implemented: a dated source is fresh if it is from 1 day ahead up to 7 days old."""
+        as_of = dt.date(2026, 11, 10)
+        for age, fresh in ((-2, False), (-1, True), (0, True), (7, True), (8, False), (30, False)):
+            with self.subTest(age_days=age):
+                d = (as_of - dt.timedelta(days=age)).isoformat()
+                r = research.assess_sufficiency([self.s("https://a.com/1", d), self.s("https://b.com/1", None)],
+                                                as_of, self.REQ)
+                self.assertEqual((r["fresh_dated_sources"], r["sufficient"]), (int(fresh), fresh), r["reasons"])
+        self.assertEqual(self.REQ["max_source_age_days"], 7)
+
+
 class NeverBullish(unittest.TestCase):
     def ctx(self, ev):
         from tests.helpers import CLOCK_TS, account, asset, limits, quote
@@ -296,11 +308,29 @@ class NeverBullish(unittest.TestCase):
 
 
 class ResearchCli(CliHarness):
-    def run_research(self, argv, post, env=ENV):
+    def run_research(self, argv, post, env=ENV, now=NOW):
+        """Run the research CLI on a fixed clock. Without this the command uses the real date, and the
+        fixture's 2026-10-27 articles turn stale after 7 days (the test broke on 2026-11-04)."""
+        real_ask = research.ask
+
+        def ask_on_fixed_clock(*a, **kw):
+            return real_ask(*a, **{"today": now.date(), "now": now, **kw})
         with mock.patch.object(tavily, "_post", post), mock.patch.dict("os.environ", env), \
                 mock.patch.object(cli, "load_integrations", lambda: SETTINGS), \
-                mock.patch.object(research, "load_integrations", lambda: SETTINGS):
+                mock.patch.object(research, "load_integrations", lambda: SETTINGS), \
+                mock.patch.object(research, "ask", ask_on_fixed_clock):
             return self.run_cli(argv, FakeAlpaca())
+
+    def test_freshness_window_through_the_cli(self):
+        """The fixture's dated articles are from 2026-10-27; 7 days old is still fresh, 8 days is stale."""
+        for when, exp_code in ((dt.datetime(2026, 10, 28, 12, tzinfo=dt.timezone.utc), cli.EXIT_OK),
+                               (dt.datetime(2026, 11, 3, 12, tzinfo=dt.timezone.utc), cli.EXIT_OK),
+                               (dt.datetime(2026, 11, 4, 12, tzinfo=dt.timezone.utc), cli.EXIT_INSUFFICIENT)):
+            with self.subTest(today=when.date().isoformat()):
+                code, text = self.run_research(["research", "Ford earnings", "--topic", "news"], FakePost(), now=when)
+                self.assertEqual(code, exp_code, text)
+                if exp_code == cli.EXIT_INSUFFICIENT:
+                    self.assertIn("0 dated sources within 7 days", text)
 
     def test_research_log_stores_full_evidence_metadata(self):
         code, text = self.run_research(["research", "Ford earnings", "--topic", "finance", "--log",
