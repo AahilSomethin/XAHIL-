@@ -1,0 +1,9 @@
+{
+  "workflow": "pre-market",
+  "date": "2026-11-05",
+  "run_id": "11ffe190d9ba",
+  "status": "started",
+  "started_at": "2026-11-05T08:09:16-05:00",
+  "attempt": 1,
+  "recovery_note": null
+}
