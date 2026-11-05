@@ -2,8 +2,10 @@
   "workflow": "market-open",
   "date": "2026-11-05",
   "run_id": "ff733f1b05f4",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-05T09:47:49-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-05T09:48:11-05:00",
+  "summary": "No TRADE decision (BMY watch, PFE/WFC skip); no positions; no orders"
 }
