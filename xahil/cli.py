@@ -714,7 +714,7 @@ def cmd_snapshot(args, client_factory) -> int:
              f"**Day P&L:** {metrics.fmt_money(day_pnl)} ({metrics.fmt_pct(metrics.pct(row['equity'], prev_eq))}) | "
              f"**Since start:** {metrics.fmt_money(inception.get('pnl'))} ({metrics.fmt_pct(inception.get('return_pct'))})",
              f"**Week to date:** {metrics.fmt_pct(wtd.get('return_pct'))} vs SPY {metrics.fmt_pct(wtd.get('spy_return_pct'))} | "
-             f"**Since start vs SPY:** {metrics.fmt_pct(inception.get('spy_return_pct'))} | "
+             f"**Since start vs SPY:** {metrics.fmt_pct(inception.get('vs_spy_pct'))} | "
              f"**Max drawdown:** {metrics.fmt_pct(inception.get('max_drawdown_pct'))} | "
              f"**Buys this week:** {week_buys}/{load_risk_limits().max_new_trades_per_week}",
              "", "| Ticker | Shares | Entry | Close | Day Chg | Unrealized P&L | Stop |",

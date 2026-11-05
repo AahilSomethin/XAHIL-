@@ -293,3 +293,42 @@ class Workflows(CliHarness):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SnapshotRelativePerformance(CliHarness):
+    """Regression: 'Since start vs SPY' is the portfolio's return minus SPY's, not SPY's own return
+    (the trade log printed SPY's return here until 2026-11-05)."""
+
+    def snapshot(self, equity, spy_close):
+        # Day 1 baseline: $1,000 and SPY at 100. Day 2 (the fake clock's day) is recorded by the snapshot.
+        (self.tmp / "hist.csv").write_text("date,equity,cash,long_value,spy_close\n"
+                                           "2026-10-27,1000.00,1000.00,0.00,100.0000\n", encoding="utf-8")
+        fake = FakeAlpaca(bars=[{"t": "2026-10-28T04:00:00Z", "c": spy_close}],
+                          account=account(equity=str(equity), cash=str(equity), last_equity="1000"))
+        code, text = self.run_cli(["snapshot"], fake)
+        self.assertEqual(code, 0, text)
+        return text
+
+    def test_underperforming_spy_is_negative(self):
+        text = self.snapshot(1000, 102.0)  # flat vs SPY +2%
+        self.assertIn("**Since start vs SPY:** -2.00% |", text)
+
+    def test_outperforming_spy_is_positive(self):
+        text = self.snapshot(1050, 102.0)  # +5% vs SPY +2%
+        self.assertIn("**Since start vs SPY:** +3.00% |", text)
+
+    def test_matching_spy_is_zero(self):
+        text = self.snapshot(1020, 102.0)  # +2% vs SPY +2%
+        self.assertIn("**Since start vs SPY:** +0.00% |", text)
+
+    def test_spy_falling_while_flat_is_positive(self):
+        text = self.snapshot(1000, 97.0)  # flat vs SPY -3%
+        self.assertIn("**Since start vs SPY:** +3.00% |", text)
+
+    def test_missing_spy_data_is_not_applicable(self):
+        (self.tmp / "hist.csv").write_text("date,equity,cash,long_value,spy_close\n"
+                                           "2026-10-27,1000.00,1000.00,0.00,\n", encoding="utf-8")
+        fake = FakeAlpaca(bars=[], account=account(equity="1000", cash="1000", last_equity="1000"))
+        code, text = self.run_cli(["snapshot"], fake)
+        self.assertEqual(code, 0, text)
+        self.assertIn("**Since start vs SPY:** n/a |", text)

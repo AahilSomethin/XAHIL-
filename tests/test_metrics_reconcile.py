@@ -27,6 +27,19 @@ class Metrics(unittest.TestCase):
         self.assertAlmostEqual(s["spy_return_pct"], 2.0)
         self.assertAlmostEqual(s["vs_spy_pct"], 1.0)
 
+    def test_vs_spy_sign(self):
+        """vs_spy_pct = portfolio return - SPY return: negative when trailing, positive when leading."""
+        def rows(end_equity, end_spy):
+            return [{"date": "2026-11-02", "equity": 100000.0, "spy_close": 100.0},
+                    {"date": "2026-11-04", "equity": end_equity, "spy_close": end_spy}]
+        for end_equity, end_spy, expected in ((100000.0, 101.95, -1.95), (103000.0, 101.0, 2.0),
+                                              (101000.0, 101.0, 0.0), (100000.0, 98.0, 2.0)):
+            s = metrics.inception_stats(rows(end_equity, end_spy))
+            self.assertAlmostEqual(s["vs_spy_pct"], expected, places=6)
+            self.assertAlmostEqual(s["vs_spy_pct"], s["return_pct"] - s["spy_return_pct"], places=9)
+            w = metrics.period_stats(rows(end_equity, end_spy), dt.date(2026, 11, 2), dt.date(2026, 11, 4))
+            self.assertAlmostEqual(w["vs_spy_pct"], expected, places=6)
+
     def test_inception_stats(self):
         rows = [row("2026-10-23", 1000, 500), row("2026-10-30", 950, 525)]
         s = metrics.inception_stats(rows)
