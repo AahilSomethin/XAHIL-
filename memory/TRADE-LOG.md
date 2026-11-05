@@ -48,3 +48,13 @@ No positions yet. Order execution is disabled (dry-run) until the owner approves
 | (no positions) | | | | | | |
 
 **Notes:** No trades today; one skipped idea (PFE gapped above the reference price, R:R fell to ~1.2:1, so HOLD; check-buy approved but nothing submitted). No positions, so no stops needed and nothing overnight-unprotected (reconcile clean, no halts). Execution is still in dry-run. Tomorrow: review fresh research and act only on a dated catalyst with sufficient evidence; default HOLD.
+
+### 2026-11-05 - EOD Snapshot (PAPER)
+**Portfolio:** $100,000.00 | **Cash:** $100,000.00 (100.0%) | **Day P&L:** +$0.00 (+0.00%) | **Since start:** +$0.00 (+0.00%)
+**Week to date:** +0.00% vs SPY -2.47% | **Since start vs SPY:** +2.47% | **Max drawdown:** +0.00% | **Buys this week:** 0/3
+
+| Ticker | Shares | Entry | Close | Day Chg | Unrealized P&L | Stop |
+|---|---|---|---|---|---|---|
+| (no positions) | | | | | | |
+
+**Notes:** No trades or proposals today (HOLD: BMY sufficient research but no dated catalyst; PFE/WFC insufficient). No positions, so no stops needed and nothing overnight-unprotected (reconcile clean, no halts). Execution is still in dry-run. Tomorrow: review fresh research and act only on a dated catalyst with sufficient evidence; default HOLD.
