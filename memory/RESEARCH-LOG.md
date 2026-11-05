@@ -128,3 +128,35 @@ HOLD
 
 ### Decision
 HOLD at pre-market; PFE is a candidate for market-open re-check only.
+
+## 2026-11-05 - Pre-market Research
+
+### Account
+- Equity $100,000 / cash $100,000 / long exposure $0 / no positions / 0 buys this week. Reconcile OK, no halts. Dry-run mode.
+
+### Market Context
+- Regime: risk_on (SPY 766.73 > SMA50 766.44 > SMA200 727.09; 20d vol 12.9%).
+- S&P 500 futures / SPY: Wed Nov 4 Dow +1,500 (best day of 2026), S&P/Nasdaq rallied after midterm results; selloff fully erased [e-2026-11-05-5, -6]. Pre-market futures query INSUFFICIENT (1 undated source) -> no information [e-2026-11-05-1].
+- VIX: no sufficient source today.
+- Rates, oil, dollar: not covered by sufficient sources.
+- Today's catalysts and economic calendar: Thu data/auctions per TradingEconomics [e-2026-11-05-3]; NFP Fri; ISM services slower, ADP solid [e-2026-11-05-5].
+- Earnings: DVN/MUR/NWE/JOBY-type names; calendar in [e-2026-11-05-2].
+- Sector momentum: broad rally after big up day; Schwab notes FY26 S&P EPS growth est. 36% [e-2026-11-05-6].
+- Research source: Tavily
+
+### Held Positions
+- None.
+
+### Signals considered
+- Qualified: AES, BMY, GM, KDP, KHC, KO, MO, PFE, WFC, XLB. Researched PFE, BMY, WFC (5/8 credits used incl. market).
+- PFE, WFC: insufficient (1 undated source) -> skip.
+- BMY: sufficient (Q3 beat/raised outlook Oct 30; pipeline-catalyst week, undated specific readout) [e-2026-11-05-8..15]. No specific dated catalyst for today -> watch.
+
+### Trade Ideas
+- None. After a +1,500-point Dow day, no dated, specific catalyst; chasing not warranted.
+
+### Risk Factors
+- Post-rally mean reversion, NFP Fri, Iran/oil headlines, thin pre-market data.
+
+### Decision
+HOLD

@@ -2,8 +2,10 @@
   "workflow": "pre-market",
   "date": "2026-11-05",
   "run_id": "11ffe190d9ba",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-05T08:09:16-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-05T08:10:10-05:00",
+  "summary": "HOLD; no positions, no ideas (BMY watch, PFE/WFC insufficient); regime risk_on"
 }
