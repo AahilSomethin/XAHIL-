@@ -2,8 +2,10 @@
   "workflow": "market-open",
   "date": "2026-11-06",
   "run_id": "047bd1fab34e",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-06T09:48:31-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-06T09:48:58-05:00",
+  "summary": "HOLD: no dated catalyst, no positions, no orders; reconcile clean"
 }

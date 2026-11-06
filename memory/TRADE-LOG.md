@@ -58,3 +58,6 @@ No positions yet. Order execution is disabled (dry-run) until the owner approves
 | (no positions) | | | | | | |
 
 **Notes:** No trades or proposals today (HOLD: BMY sufficient research but no dated catalyst; PFE/WFC insufficient). No positions, so no stops needed and nothing overnight-unprotected (reconcile clean, no halts). Execution is still in dry-run. Tomorrow: review fresh research and act only on a dated catalyst with sufficient evidence; default HOLD.
+
+### 2026-11-06 09:50 ET - Market-open (PAPER)
+- No buys: pre-market decision HOLD (NFP day, no dated catalyst; GM/PFE watch only). No positions, no stops needed, reconcile clean, no halts. Execution dry-run.
