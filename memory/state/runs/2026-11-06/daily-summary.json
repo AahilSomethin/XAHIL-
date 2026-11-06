@@ -2,8 +2,10 @@
   "workflow": "daily-summary",
   "date": "2026-11-06",
   "run_id": "908e91eb4235",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-06T16:22:38-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-06T16:22:57-05:00",
+  "summary": "EOD snapshot logged, no positions, HOLD, notified"
 }

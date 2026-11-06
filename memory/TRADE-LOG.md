@@ -64,3 +64,13 @@ No positions yet. Order execution is disabled (dry-run) until the owner approves
 
 ### 2026-11-06 12:10 ET - Midday scan (PAPER)
 - No positions, midday-scan: no actions. Reconcile clean, no halts. No new research. Execution dry-run.
+
+### 2026-11-06 - EOD Snapshot (PAPER)
+**Portfolio:** $100,000.00 | **Cash:** $100,000.00 (100.0%) | **Day P&L:** +$0.00 (+0.00%) | **Since start:** +$0.00 (+0.00%)
+**Week to date:** +0.00% vs SPY -2.21% | **Since start vs SPY:** +2.21% | **Max drawdown:** +0.00% | **Buys this week:** 0/3
+
+| Ticker | Shares | Entry | Close | Day Chg | Unrealized P&L | Stop |
+|---|---|---|---|---|---|---|
+| (no positions) | | | | | | |
+
+**Notes:** No trades or proposals today (HOLD: NFP day, GM/PFE sufficient research but no new dated catalyst; KRE research was noise). No positions, so no stops needed and nothing overnight-unprotected (reconcile clean, no halts). Execution is still in dry-run. Tomorrow (weekend, then Monday): review fresh research and act only on a dated catalyst with sufficient evidence; default HOLD.
