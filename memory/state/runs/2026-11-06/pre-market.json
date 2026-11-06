@@ -2,8 +2,10 @@
   "workflow": "pre-market",
   "date": "2026-11-06",
   "run_id": "64f5bf9891f8",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-06T08:13:27-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-06T08:14:25-05:00",
+  "summary": "HOLD; no positions, no ideas (NFP day, AI/chip volatility, no dated catalyst)"
 }

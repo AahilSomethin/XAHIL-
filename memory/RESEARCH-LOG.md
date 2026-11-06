@@ -160,3 +160,35 @@ HOLD at pre-market; PFE is a candidate for market-open re-check only.
 
 ### Decision
 HOLD
+
+## 2026-11-06 - Pre-market Research
+
+### Account
+- Equity $100,000 / cash $100,000 / long exposure $0 / no positions / 0 buys this week. Reconcile OK, no halts. Dry-run mode.
+
+### Market Context
+- Regime: neutral (SPY 733.43 above SMA200 727.35, below SMA50 765.83; 20d vol 20.2%, up from 12.9%).
+- S&P 500 futures / SPY: Asia chip crash overnight (SK Hynix -11.7%, Taiwan -8%) after steep AI selloff; at 05:25 ET Nasdaq 100 futures +1.2%, S&P +0.3%, Dow futures -0.9%; Nvidia +4.5% premarket after worst day since Jan 2025 [e-2026-11-06-1, -2, -3].
+- VIX: no sufficient source.
+- Today's catalysts and economic calendar: NFP 8:30 ET (consensus 65K, prior 29K), unemployment 4.2%, AHE m/m 0.3%; Williams speaks 4:30 [e-2026-11-06-5, -6].
+- Earnings before the open: Airbnb, Cloudflare, IREN up; Atlassian, Five9 down [e-2026-11-06-1]. Next week's calendar [e-2026-11-06-4].
+- Sector momentum: chips volatile (AI selloff, partial rebound); rotation out of Dow into Nasdaq.
+- Research source: Tavily
+
+### Held Positions
+- None.
+
+### Signals considered
+- Qualified: AES, BMY, GM, KDP, KHC, KO, KRE, MO, PFE, SCHD. Researched GM, KRE, PFE (5/8 credits used incl. market).
+- GM: sufficient. $20B buyback (Oct 30) is old news; Nov 4/6 items are neutral (holdings filing, MP Materials qualification) [e-2026-11-06-7, -8, -9]. No new dated catalyst -> watch.
+- KRE: results were noise (Health Catalyst, KRE Group); no relevant ETF news -> skip [e-2026-11-06-12..15].
+- PFE: sufficient, but only Q3 beat/raised guidance (Nov 3) and income-investor commentary; catalyst already priced, no new one [e-2026-11-06-16, -17] -> watch.
+
+### Trade Ideas
+- None. NFP at 8:30 ET plus a violent AI/chip selloff and rebound; no fresh dated catalyst for any signal.
+
+### Risk Factors
+- NFP surprise, AI/chip volatility spillover, vol 20d up to 20%, Dow/Nasdaq divergence.
+
+### Decision
+HOLD
