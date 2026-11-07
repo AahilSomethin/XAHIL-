@@ -1,0 +1,9 @@
+{
+  "workflow": "weekly-review",
+  "date": "2026-W45",
+  "run_id": "88959833cbce",
+  "status": "started",
+  "started_at": "2026-11-07T10:08:22-05:00",
+  "attempt": 1,
+  "recovery_note": null
+}
