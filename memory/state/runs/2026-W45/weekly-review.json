@@ -2,8 +2,10 @@
   "workflow": "weekly-review",
   "date": "2026-W45",
   "run_id": "88959833cbce",
-  "status": "started",
+  "status": "completed",
   "started_at": "2026-11-07T10:08:22-05:00",
   "attempt": 1,
-  "recovery_note": null
+  "recovery_note": null,
+  "finished_at": "2026-11-07T10:09:16-05:00",
+  "summary": "Weekly review 2026-11-06: flat, +0.00% vs SPY -2.21%, no trades, grade B"
 }

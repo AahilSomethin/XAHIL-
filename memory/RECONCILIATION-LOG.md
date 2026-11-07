@@ -69,3 +69,6 @@ Broker (Alpaca paper) state at the start of every run. Alpaca is the source of t
 
 ## 2026-11-06T16:22 - daily-summary
 - Equity $100,000.00 | Cash $100,000.00 | Long $0.00 | Positions 0 | Open orders 0
+
+## 2026-11-07T10:08 - weekly-review
+- Equity $100,000.00 | Cash $100,000.00 | Long $0.00 | Positions 0 | Open orders 0
